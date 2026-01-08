@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "318946402557",
+    "project_id": "bookit-d5ccb",
+    "storage_bucket": "bookit-d5ccb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:318946402557:android:404d1a1dc8c44277611e94",
+        "android_client_info": {
+          "package_name": "com.example.bookit_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD6ob2qPBgZlAlXhytZ7xfrq_ogQqJ5qgs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
