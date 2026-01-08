@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:bookit_app/screens/intro_chat_screen.dart';
+// 🔸 1. 게시판 화면 임포트 추가 (파일 경로를 확인해주세요)
+import 'package:bookit_app/screens/post_board_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -11,7 +13,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
-  // 🔸 피그마 Pretendard 스타일 공통 적용 함수
   TextStyle _ptStyle({
     required double size,
     required FontWeight weight,
@@ -24,11 +25,13 @@ class _HomeScreenState extends State<HomeScreen> {
       fontWeight: weight,
       color: color,
       height: height,
-      letterSpacing: size * -0.025, // -0.025em 반영
+      letterSpacing: size * -0.025,
     );
   }
 
+  // 🔸 2. 네비게이션 탭 클릭 로직 수정
   void _onItemTapped(int index) {
+    // 검색 탭 (인덱스 1)
     if (index == 1) {
       Navigator.push(
         context,
@@ -39,7 +42,15 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         ),
       );
-    } else {
+    }
+    // 🔥 3. 글쓰기 탭 (인덱스 2) 클릭 시 게시판 화면으로 이동
+    else if (index == 2) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const PostBoardScreen()),
+      );
+    }
+    else {
       setState(() { _selectedIndex = index; });
     }
   }
@@ -48,7 +59,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      // AppBar를 투명하게 설정하여 상단 그라데이션과 겹치게 구성
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         leading: IconButton(onPressed: () {}, icon: const Icon(Icons.menu, color: Colors.white)),
@@ -70,12 +80,8 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // 1. 추천 Pick 섹션 (그라데이션 배경 포함)
             _buildTopRecommendation(),
-
             const SizedBox(height: 32),
-
-            // 2. 베스트 셀러 헤더 (더보기 포함)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
@@ -86,19 +92,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-
             const SizedBox(height: 15),
-
-            // 3. 베스트 셀러 리스트
             _buildBestsellerItem(rank: '01', title: '그 시절 내가 좋아했던', author: '김민수', imageUrl: 'https://i.ibb.co/b6yFp7G/book1.jpg', rating: '4.7', reviewCount: '13'),
             _buildBestsellerItem(rank: '02', title: '장난 꾸러기 고양이 카를로스', author: '아스 트릭스', imageUrl: 'https://i.ibb.co/bK6D1ff/book2.jpg', rating: '4.8', reviewCount: '127'),
             _buildBestsellerItem(rank: '03', title: '사일런트', author: '매튜 조니', imageUrl: 'https://i.ibb.co/hL7g6Jt/book3.jpg', rating: '4.2', reviewCount: '91'),
-
             const SizedBox(height: 10),
-
-            // 4. 하단 특별 기획 배너 (피그마 Rectangle 32916 수치 반영)
             _buildSpecialBanner(),
-
             const SizedBox(height: 40),
           ],
         ),
@@ -115,7 +114,7 @@ class _HomeScreenState extends State<HomeScreen> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: '홈'),
           BottomNavigationBarItem(icon: Icon(Icons.search), label: '검색'),
-          BottomNavigationBarItem(icon: Icon(Icons.edit_outlined), label: '글쓰기'),
+          BottomNavigationBarItem(icon: Icon(Icons.edit_outlined), label: '글쓰기'), // 🔸 index 2
           BottomNavigationBarItem(icon: Icon(Icons.bookmark_border), label: '서재'),
           BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: '내정보'),
         ],
@@ -123,8 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- 위젯 빌더 함수들 ---
-
+  // ... (이하 _buildTopRecommendation, _buildPickCard 등 빌더 함수들은 기존과 동일) ...
   Widget _buildTopRecommendation() {
     return Container(
       width: double.infinity,
@@ -141,7 +139,6 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 100),
           Text('이번주 추천 Pick!', style: _ptStyle(size: 22, weight: FontWeight.w500, color: Colors.white)),
           const SizedBox(height: 30),
-          // 카드 섹션 (기존 코드 유지하되 스타일 보강)
           SizedBox(
             height: 200,
             child: PageView.builder(
