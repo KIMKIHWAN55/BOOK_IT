@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:bookit_app/screens/intro_chat_screen.dart';
 // 🔸 1. 게시판 화면 임포트 추가 (파일 경로를 확인해주세요)
 import 'package:bookit_app/screens/post_board_screen.dart';
+import 'package:bookit_app/screens/library_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -29,7 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // 🔸 2. 네비게이션 탭 클릭 로직 수정
+// 🔸 2. 네비게이션 탭 클릭 로직 수정
   void _onItemTapped(int index) {
     // 검색 탭 (인덱스 1)
     if (index == 1) {
@@ -43,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     }
+
     // 🔥 3. 글쓰기 탭 (인덱스 2) 클릭 시 게시판 화면으로 이동
     else if (index == 2) {
       Navigator.push(
@@ -50,10 +52,20 @@ class _HomeScreenState extends State<HomeScreen> {
         MaterialPageRoute(builder: (context) => const PostBoardScreen()),
       );
     }
+
+    // 🔸 4. 서재 탭 (인덱스 3) 클릭 시 서재 화면으로 이동 추가
+    else if (index == 3) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const LibraryScreen()),
+      );
+    }
+
     else {
       setState(() { _selectedIndex = index; });
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -115,7 +127,7 @@ class _HomeScreenState extends State<HomeScreen> {
           BottomNavigationBarItem(icon: Icon(Icons.home), label: '홈'),
           BottomNavigationBarItem(icon: Icon(Icons.search), label: '검색'),
           BottomNavigationBarItem(icon: Icon(Icons.edit_outlined), label: '글쓰기'), // 🔸 index 2
-          BottomNavigationBarItem(icon: Icon(Icons.bookmark_border), label: '서재'),
+          BottomNavigationBarItem(icon: Icon(Icons.menu_book), label: '서재'),
           BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: '내정보'),
         ],
       ),

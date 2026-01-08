@@ -9,7 +9,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // 🔸 추가됨
-
+import 'package:bookit_app/screens/library_screen.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -57,6 +57,7 @@ class BookitApp extends StatelessWidget {
         '/intro_chat': (context) => const IntroChatScreen(),
         '/chat': (context) => const ChatScreen(),
         '/cart': (context) => const CartScreen(),
+        '/library': (context) => const LibraryScreen(),
       },
     );
   }
