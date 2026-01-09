@@ -48,7 +48,12 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.menu, color: Colors.white)
         ),
         actions: [
-          IconButton(onPressed: () {}, icon: const Icon(Icons.search, color: Colors.white)),
+          IconButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '/search'); // 검색 화면으로 이동
+              },
+              icon: const Icon(Icons.search, color: Colors.white)
+          ),
           Stack(
             alignment: Alignment.center,
             children: [

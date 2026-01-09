@@ -6,6 +6,7 @@ import 'package:bookit_app/screens/login_screen.dart';
 import 'package:bookit_app/screens/signup_screen.dart';
 import 'package:bookit_app/screens/app_intro_screen.dart'; // 인트로 화면
 import 'package:bookit_app/screens/main_screen.dart';
+import 'package:bookit_app/screens/search_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -59,6 +60,7 @@ class BookitApp extends StatelessWidget {
         '/chat': (context) => const ChatScreen(),
         '/cart': (context) => const CartScreen(),
         '/library': (context) => const LibraryScreen(),
+        '/search': (context) => const SearchScreen(),
       },
     );
   }
