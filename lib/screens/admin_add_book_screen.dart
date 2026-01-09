@@ -49,7 +49,6 @@ class _AdminAddBookScreenState extends State<AdminAddBookScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // 1. Firebase Storage에 바이트 데이터로 업로드 (웹/앱 공용)
       final storageRef = FirebaseStorage.instance
           .ref()
           .child('book_covers')
@@ -58,15 +57,20 @@ class _AdminAddBookScreenState extends State<AdminAddBookScreen> {
       await storageRef.putData(_imageBytes!);
       final imageUrl = await storageRef.getDownloadURL();
 
-      // 2. Firestore 저장
+      // Firestore 저장 로직 수정
       await FirebaseFirestore.instance.collection('books').add({
         'title': _titleController.text,
         'author': _authorController.text,
         'description': _descriptionController.text,
         'price': int.tryParse(_priceController.text) ?? 0,
-        'category': _categoryController.text,
+        'category': _categoryController.text.trim().toLowerCase(), // 소문자로 통일하여 저장
         'imageUrl': imageUrl,
         'createdAt': FieldValue.serverTimestamp(),
+
+        // --- 아래 필수 필드들을 추가하세요 ---
+        'rank': '1',             // 임시 순위 (홈 화면 orderBy 해결용)
+        'rating': '0.0',         // 기본 평점
+        'reviewCount': '0',      // 기본 리뷰 수
       });
 
       if (mounted) {

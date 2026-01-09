@@ -5,6 +5,7 @@ import 'package:bookit_app/screens/intro_chat_screen.dart';
 import 'package:bookit_app/screens/login_screen.dart';
 import 'package:bookit_app/screens/signup_screen.dart';
 import 'package:bookit_app/screens/app_intro_screen.dart'; // 인트로 화면
+import 'package:bookit_app/screens/main_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -64,20 +65,20 @@ class BookitApp extends StatelessWidget {
 
   // 🔸 첫 화면을 결정하는 별도의 함수
   Widget _getHomeWidget() {
-    // 1순위: 인트로를 안 봤다면 무조건 인트로 화면으로
     if (!onboardingSeen) {
       return const AppIntroScreen();
     }
 
-    // 2순위: 인트로를 봤다면 로그인 상태에 따라 홈 또는 로그인 화면으로
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator()));
         }
         if (snapshot.hasData) {
-          return const HomeScreen();
+          // ▼ HomeScreen() 대신 MainScreen()을 반환합니다.
+          return const MainScreen();
         }
         return const LoginScreen();
       },
