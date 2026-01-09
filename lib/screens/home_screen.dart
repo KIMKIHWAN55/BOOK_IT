@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:bookit_app/models/book_model.dart'; // 🔸 데이터 모델 임포트
 import 'package:bookit_app/screens/intro_chat_screen.dart';
-// 🔸 1. 게시판 화면 임포트 추가 (파일 경로를 확인해주세요)
-import 'package:bookit_app/screens/post_board_screen.dart';
-import 'package:bookit_app/screens/library_screen.dart';
+import 'package:bookit_app/screens/post_board_screen.dart'; // 🔸 게시판 화면 임포트
+import 'package:bookit_app/screens/library_screen.dart'; // 🔸 서재 화면 임포트
+import 'package:bookit_app/screens/admin_add_book_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,6 +16,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
+  // 🔸 피그마 Pretendard 스타일 공통 적용 함수
   TextStyle _ptStyle({
     required double size,
     required FontWeight weight,
@@ -30,10 +33,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-// 🔸 2. 네비게이션 탭 클릭 로직 수정
+  // 🔸 네비게이션 탭 클릭 로직 (검색, 글쓰기, 서재 이동 포함)
   void _onItemTapped(int index) {
-    // 검색 탭 (인덱스 1)
     if (index == 1) {
+      // 검색 탭 -> 인트로 채팅
       Navigator.push(
         context,
         PageRouteBuilder(
@@ -43,29 +46,24 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         ),
       );
-    }
-
-    // 🔥 3. 글쓰기 탭 (인덱스 2) 클릭 시 게시판 화면으로 이동
-    else if (index == 2) {
+    } else if (index == 2) {
+      // 글쓰기 탭 -> 게시판 이동
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const PostBoardScreen()),
       );
-    }
-
-    // 🔸 4. 서재 탭 (인덱스 3) 클릭 시 서재 화면으로 이동 추가
-    else if (index == 3) {
+    } else if (index == 3) {
+      // 서재 탭 -> 내 서재 이동
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const LibraryScreen()),
       );
-    }
-
-    else {
-      setState(() { _selectedIndex = index; });
+    } else {
+      setState(() {
+        _selectedIndex = index;
+      });
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -73,13 +71,23 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: Colors.white,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        leading: IconButton(onPressed: () {}, icon: const Icon(Icons.menu, color: Colors.white)),
+        leading: IconButton(
+            onPressed: () {
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AdminAddBookScreen())
+              );
+            },
+            icon: const Icon(Icons.menu, color: Colors.white)
+        ),
         actions: [
           IconButton(onPressed: () {}, icon: const Icon(Icons.search, color: Colors.white)),
           Stack(
             alignment: Alignment.center,
             children: [
-              IconButton(onPressed: () => Navigator.pushNamed(context, '/cart'), icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white)),
+              IconButton(
+                  onPressed: () => Navigator.pushNamed(context, '/cart'),
+                  icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white)),
               Positioned(top: 10, right: 8, child: _buildBadge("3")),
             ],
           ),
@@ -88,33 +96,72 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-
       body: SingleChildScrollView(
         child: Column(
           children: [
+            // 1. 추천 Pick 섹션 (Firestore 동적 연동)
             _buildTopRecommendation(),
+
             const SizedBox(height: 32),
+
+            // 2. 베스트 셀러 헤더
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('이번달 베스트 셀러', style: _ptStyle(size: 20, weight: FontWeight.w600)),
-                  Text('더보기', style: _ptStyle(size: 14, weight: FontWeight.w400, color: const Color(0xFF767676))),
+                  Text('더보기',
+                      style: _ptStyle(size: 14, weight: FontWeight.w400, color: const Color(0xFF767676))),
                 ],
               ),
             ),
+
             const SizedBox(height: 15),
-            _buildBestsellerItem(rank: '01', title: '그 시절 내가 좋아했던', author: '김민수', imageUrl: 'https://i.ibb.co/b6yFp7G/book1.jpg', rating: '4.7', reviewCount: '13'),
-            _buildBestsellerItem(rank: '02', title: '장난 꾸러기 고양이 카를로스', author: '아스 트릭스', imageUrl: 'https://i.ibb.co/bK6D1ff/book2.jpg', rating: '4.8', reviewCount: '127'),
-            _buildBestsellerItem(rank: '03', title: '사일런트', author: '매튜 조니', imageUrl: 'https://i.ibb.co/hL7g6Jt/book3.jpg', rating: '4.2', reviewCount: '91'),
+
+            // 3. 베스트 셀러 리스트 (Firestore 동적 연동)
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('books')
+                  .where('category', isEqualTo: 'bestseller')
+                  .orderBy('rank')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) return const Center(child: Text('데이터를 불러오지 못했습니다.'));
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: Padding(
+                    padding: EdgeInsets.all(20.0),
+                    child: CircularProgressIndicator(),
+                  ));
+                }
+
+                final docs = snapshot.data!.docs;
+                final books = docs.map((doc) => BookModel.fromFirestore(doc)).toList();
+
+                if (books.isEmpty) return const Center(child: Text('등록된 베스트셀러가 없습니다.'));
+
+                return Column(
+                  children: books.map((book) => _buildBestsellerItem(
+                    rank: book.rank,
+                    title: book.title,
+                    author: book.author,
+                    imageUrl: book.imageUrl,
+                    rating: book.rating,
+                    reviewCount: book.reviewCount,
+                  )).toList(),
+                );
+              },
+            ),
+
             const SizedBox(height: 10),
+
+            // 4. 하단 특별 기획 배너
             _buildSpecialBanner(),
+
             const SizedBox(height: 40),
           ],
         ),
       ),
-
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
@@ -126,7 +173,7 @@ class _HomeScreenState extends State<HomeScreen> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: '홈'),
           BottomNavigationBarItem(icon: Icon(Icons.search), label: '검색'),
-          BottomNavigationBarItem(icon: Icon(Icons.edit_outlined), label: '글쓰기'), // 🔸 index 2
+          BottomNavigationBarItem(icon: Icon(Icons.edit_outlined), label: '글쓰기'),
           BottomNavigationBarItem(icon: Icon(Icons.menu_book), label: '서재'),
           BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: '내정보'),
         ],
@@ -134,39 +181,53 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ... (이하 _buildTopRecommendation, _buildPickCard 등 빌더 함수들은 기존과 동일) ...
+  // --- 위젯 빌더 함수들 ---
+
   Widget _buildTopRecommendation() {
-    return Container(
-      width: double.infinity,
-      height: 420,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.bottomCenter,
-          end: Alignment.topCenter,
-          colors: [Color(0x99999999), Color(0xB2222222)],
-        ),
-      ),
-      child: Column(
-        children: [
-          const SizedBox(height: 100),
-          Text('이번주 추천 Pick!', style: _ptStyle(size: 22, weight: FontWeight.w500, color: Colors.white)),
-          const SizedBox(height: 30),
-          SizedBox(
-            height: 200,
-            child: PageView.builder(
-              itemCount: 6,
-              controller: PageController(viewportFraction: 0.6),
-              itemBuilder: (context, index) => _buildPickCard(),
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('books')
+          .where('category', isEqualTo: 'recommend')
+          .snapshots(),
+      builder: (context, snapshot) {
+        final docs = snapshot.data?.docs ?? [];
+        final books = docs.map((doc) => BookModel.fromFirestore(doc)).toList();
+
+        return Container(
+          width: double.infinity,
+          height: 420,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.bottomCenter,
+              end: Alignment.topCenter,
+              colors: [Color(0x99999999), Color(0xB2222222)],
             ),
           ),
-          const SizedBox(height: 20),
-          Text('1 / 6', style: _ptStyle(size: 16, weight: FontWeight.w600, color: Colors.white)),
-        ],
-      ),
+          child: Column(
+            children: [
+              const SizedBox(height: 100),
+              Text('이번주 추천 Pick!', style: _ptStyle(size: 22, weight: FontWeight.w500, color: Colors.white)),
+              const SizedBox(height: 30),
+              SizedBox(
+                height: 200,
+                child: books.isEmpty
+                    ? const Center(child: Text("추천 도서가 없습니다.", style: TextStyle(color: Colors.white)))
+                    : PageView.builder(
+                  itemCount: books.length,
+                  controller: PageController(viewportFraction: 0.6),
+                  itemBuilder: (context, index) => _buildPickCard(books[index].imageUrl),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text('${books.isEmpty ? 0 : 1} / ${books.length}', style: _ptStyle(size: 16, weight: FontWeight.w600, color: Colors.white)),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildPickCard() {
+  Widget _buildPickCard(String imageUrl) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
@@ -175,17 +236,26 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(6),
-        child: Image.network('https://i.ibb.co/3sHHDq2/paradox-cover.jpg', fit: BoxFit.cover),
+        child: Image.network(imageUrl, fit: BoxFit.cover),
       ),
     );
   }
 
-  Widget _buildBestsellerItem({required String rank, required String title, required String author, required String imageUrl, required String rating, required String reviewCount}) {
+  Widget _buildBestsellerItem({
+    required String rank,
+    required String title,
+    required String author,
+    required String imageUrl,
+    required String rating,
+    required String reviewCount
+  }) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
       child: Row(
         children: [
-          ClipRRect(borderRadius: BorderRadius.circular(6), child: Image.network(imageUrl, width: 73, height: 110, fit: BoxFit.cover)),
+          ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Image.network(imageUrl, width: 73, height: 110, fit: BoxFit.cover)),
           const SizedBox(width: 27),
           Text(rank, style: _ptStyle(size: 20, weight: FontWeight.w600)),
           const SizedBox(width: 20),
@@ -193,16 +263,22 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: _ptStyle(size: 16, weight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(title,
+                    style: _ptStyle(size: 16, weight: FontWeight.w500),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 4),
-                Text(author, style: _ptStyle(size: 14, weight: FontWeight.w400, color: const Color(0xFF777777))),
+                Text(author,
+                    style: _ptStyle(size: 14, weight: FontWeight.w400, color: const Color(0xFF777777))),
                 const SizedBox(height: 8),
                 Row(
                   children: [
                     const Icon(Icons.star, color: Color(0xFFFBBC05), size: 14),
                     const SizedBox(width: 4),
-                    Text(rating, style: _ptStyle(size: 12, weight: FontWeight.w600, color: const Color(0xFFFBBC05))),
-                    Text(' ($reviewCount)', style: _ptStyle(size: 12, weight: FontWeight.w400, color: const Color(0xFF777777))),
+                    Text(rating,
+                        style: _ptStyle(size: 12, weight: FontWeight.w600, color: const Color(0xFFFBBC05))),
+                    Text(' ($reviewCount)',
+                        style: _ptStyle(size: 12, weight: FontWeight.w400, color: const Color(0xFF777777))),
                   ],
                 ),
               ],
@@ -215,17 +291,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildSpecialBanner() {
     return Container(
-      width: 326, height: 150,
+      width: 326,
+      height: 150,
       margin: const EdgeInsets.symmetric(horizontal: 32),
       decoration: BoxDecoration(color: const Color(0xFF21212F), borderRadius: BorderRadius.circular(32)),
       child: Stack(
         children: [
           Positioned(
-            left: 32, top: 36,
+            left: 32,
+            top: 36,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('여러분들을 위해\n지금 준비 했어요!', style: _ptStyle(size: 20, weight: FontWeight.w600, color: Colors.white, height: 1.2)),
+                Text('여러분들을 위해\n지금 준비 했어요!',
+                    style: _ptStyle(size: 20, weight: FontWeight.w600, color: Colors.white, height: 1.2)),
                 const SizedBox(height: 12),
                 Text('다신 오지 않는 특별한 기획', style: _ptStyle(size: 14, weight: FontWeight.w400, color: Colors.white)),
               ],
@@ -240,7 +319,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: const BoxDecoration(color: Color(0xFFEA4335), shape: BoxShape.circle),
-      child: Text(count, style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
+      child: Text(count,
+          style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
     );
   }
 }
