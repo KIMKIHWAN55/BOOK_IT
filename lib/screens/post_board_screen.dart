@@ -38,7 +38,7 @@ class _PostBoardScreenState extends State<PostBoardScreen> with SingleTickerProv
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F1F5), // CSS: background: #F1F1F5
+      backgroundColor: const Color(0xFFF1F1F5),
       appBar: _buildAppBar(),
       body: Column(
         children: [
@@ -63,36 +63,33 @@ class _PostBoardScreenState extends State<PostBoardScreen> with SingleTickerProv
     return AppBar(
       backgroundColor: Colors.white,
       elevation: 0,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 20),
-        onPressed: () => Navigator.pop(context),
-      ),
+      // 🔸 메인 탭이므로 leading(뒤로가기) 버튼 삭제
+      automaticallyImplyLeading: false, // 자동으로 뒤로가기 버튼 생기는 것 방지
       actions: [
         IconButton(icon: const Icon(Icons.search, color: Colors.black), onPressed: () {}),
         IconButton(icon: const Icon(Icons.notifications_none, color: Colors.black), onPressed: () {}),
-    IconButton(
-    icon: const Icon(Icons.edit_square, color: Colors.black, size: 24),
-    onPressed: () {
-    // 🚀 Navigator를 사용하여 WritePostScreen으로 이동합니다.
-    Navigator.push(
-    context,
-    MaterialPageRoute(builder: (context) => const WritePostScreen()),
-    );
-    },
-    ),
+        IconButton(
+          icon: const Icon(Icons.edit_square, color: Colors.black, size: 24),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const WritePostScreen()),
+            );
+          },
+        ),
         const SizedBox(width: 8),
       ],
     );
   }
 
-  // --- 상단 탭바 (CSS: Component 2 수치 반영) ---
+  // --- 상단 탭바 ---
   Widget _buildTabBar() {
     return Container(
       color: Colors.white,
       height: 60,
       child: TabBar(
         controller: _tabController,
-        indicatorColor: const Color(0xFFD45858), // CSS: border-bottom: 1px solid #D45858
+        indicatorColor: const Color(0xFFD45858),
         indicatorWeight: 2,
         labelColor: const Color(0xFFD45858),
         unselectedLabelColor: Colors.black,
@@ -109,9 +106,9 @@ class _PostBoardScreenState extends State<PostBoardScreen> with SingleTickerProv
   // --- 최근 소식 피드 리스트 ---
   Widget _buildRecentFeed() {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 20), // CSS: left: 16, top: 160 (조정됨)
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
       children: [
-        // 피드 1: 책돌이 (CSS: Frame 30)
+        // 피드 1
         _buildPostCard(
           userName: "책돌이",
           userRank: "팔로워 2K명 • 방금",
@@ -125,8 +122,8 @@ class _PostBoardScreenState extends State<PostBoardScreen> with SingleTickerProv
           bookImageUrl: 'https://i.ibb.co/b6yFp7G/book1.jpg',
           likes: "11", comments: "6", shares: "8",
         ),
-        const SizedBox(height: 24), // CSS: gap: 24px
-        // 피드 2: booklover_33 (CSS: Frame 34)
+        const SizedBox(height: 24),
+        // 피드 2
         _buildPostCard(
           userName: "booklover_33",
           userRank: "팔로워 768명 • 30분전",
@@ -144,7 +141,7 @@ class _PostBoardScreenState extends State<PostBoardScreen> with SingleTickerProv
     );
   }
 
-  // --- 공통 포스트 카드 위젯 (CSS 수치 정밀 반영) ---
+  // --- 공통 포스트 카드 위젯 ---
   Widget _buildPostCard({
     required String userName, required String userRank, required String recTitle,
     required String content, required String hashtags, required String bookTitle,
@@ -153,45 +150,40 @@ class _PostBoardScreenState extends State<PostBoardScreen> with SingleTickerProv
   }) {
     return Container(
       width: 358,
-      padding: const EdgeInsets.all(20), // CSS: top: 20px
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16), // CSS: border-radius: 16px
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. 프로필 (Frame 21)
           Row(
             children: [
               Container(
-                width: 50, height: 50, // CSS: 50x50
+                width: 50, height: 50,
                 decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFDBDBDB)),
                 child: const Icon(Icons.person, color: Colors.white),
               ),
-              const SizedBox(width: 10), // CSS: gap: 10px
+              const SizedBox(width: 10),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(userName, style: _ptStyle(size: 14, weight: FontWeight.w500)), // CSS: 14px, 500
+                  Text(userName, style: _ptStyle(size: 14, weight: FontWeight.w500)),
                   Text(userRank, style: _ptStyle(size: 14, weight: FontWeight.w400, color: const Color(0xFF767676))),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 20), // CSS: gap: 20px
-
-          // 2. 본문 텍스트
-          Text(recTitle, style: _ptStyle(size: 16, weight: FontWeight.w400)), // 추천도서 타이틀
+          const SizedBox(height: 20),
+          Text(recTitle, style: _ptStyle(size: 16, weight: FontWeight.w400)),
           const SizedBox(height: 12),
-          Text(content, style: _ptStyle(size: 16, weight: FontWeight.w400, height: 1.4)), // 본문
+          Text(content, style: _ptStyle(size: 16, weight: FontWeight.w400, height: 1.4)),
           const SizedBox(height: 20),
-          Text(hashtags, style: _ptStyle(size: 14, weight: FontWeight.w400, color: const Color(0xFF196DF8))), // CSS: #196DF8
+          Text(hashtags, style: _ptStyle(size: 14, weight: FontWeight.w400, color: const Color(0xFF196DF8))),
           const SizedBox(height: 20),
-
-          // 3. 책 추천 카드 (Frame 29)
           Container(
-            height: 110, // CSS: height: 110px
+            height: 110,
             decoration: BoxDecoration(
               border: Border.all(color: const Color(0xFFF1F1F5)),
               borderRadius: BorderRadius.circular(12),
@@ -202,9 +194,9 @@ class _PostBoardScreenState extends State<PostBoardScreen> with SingleTickerProv
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(6),
-                      child: Image.network(bookImageUrl, width: 73, height: 110, fit: BoxFit.cover), // CSS: 73x110
+                      child: Image.network(bookImageUrl, width: 73, height: 110, fit: BoxFit.cover),
                     ),
-                    const SizedBox(width: 40), // CSS: left: 113px 기준 간격 조정
+                    const SizedBox(width: 40),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -224,7 +216,6 @@ class _PostBoardScreenState extends State<PostBoardScreen> with SingleTickerProv
                     ),
                   ],
                 ),
-                // 책 보러가기 버튼 (Frame 28)
                 Positioned(
                   right: 10, bottom: 10,
                   child: Row(
@@ -238,12 +229,10 @@ class _PostBoardScreenState extends State<PostBoardScreen> with SingleTickerProv
             ),
           ),
           const SizedBox(height: 32),
-
-          // 4. 인터랙션 바 (Frame 175)
           Row(
             children: [
               _buildInteractionItem(Icons.favorite_border, likes),
-              const SizedBox(width: 30), // CSS: gap: 30px
+              const SizedBox(width: 30),
               _buildInteractionItem(Icons.chat_bubble_outline, comments),
               const SizedBox(width: 30),
               _buildInteractionItem(Icons.send_outlined, shares),
@@ -258,13 +247,9 @@ class _PostBoardScreenState extends State<PostBoardScreen> with SingleTickerProv
     return Row(
       children: [
         Icon(icon, size: 24, color: const Color(0xFF222222)),
-        const SizedBox(width: 4), // CSS: gap: 2px (미세 조정)
+        const SizedBox(width: 4),
         Text(count, style: _ptStyle(size: 12, weight: FontWeight.w400)),
       ],
     );
-  }
-
-  void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 }

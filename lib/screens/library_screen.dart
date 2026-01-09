@@ -21,7 +21,7 @@ class LibraryScreen extends StatelessWidget {
             decoration: const BoxDecoration(color: Color(0xFFC58152)),
             child: Stack(
               children: [
-                // 1. 나무 질감 배경 (Rectangle 32917)
+                // 1. 나무 질감 배경
                 Positioned(
                   top: 98,
                   left: 0,
@@ -30,7 +30,6 @@ class LibraryScreen extends StatelessWidget {
                     height: 685,
                     decoration: const BoxDecoration(
                       image: DecorationImage(
-                        // 이미지가 없을 경우를 대비해 갈색 계열 처리
                         image: AssetImage('assets/images/wood_bg.jpg'),
                         fit: BoxFit.cover,
                       ),
@@ -38,15 +37,15 @@ class LibraryScreen extends StatelessWidget {
                   ),
                 ),
 
-                // 2. 선반 이미지들 (image 37, 38 등 - 그림자/선반 효과)
+                // 2. 선반 이미지들
                 _buildShelfShadow(top: 45, left: -15),
                 _buildShelfShadow(top: 283, left: -17),
                 _buildShelfShadow(top: 503, left: -17),
 
-                // 3. 상단 바 (Frame 33 + Status Bar)
+                // 3. 상단 바
                 _buildAppBar(context),
 
-                // 4. 책 목록 (명세된 좌표값 적용)
+                // 4. 책 목록
                 // 첫 번째 줄
                 _buildBook(top: 193, left: (390 / 2) - (79 / 2) - 115.5, label: "Sci-Fi"),
                 _buildBook(top: 193, left: (390 / 2) - (79 / 2) + 0.5, label: "Romance"),
@@ -56,11 +55,7 @@ class LibraryScreen extends StatelessWidget {
                 _buildBook(top: 430, left: (390 / 2) - (79 / 2) - 115.5, label: "Cat Illustration"),
                 _buildBook(top: 430, left: (390 / 2) - (79 / 2) + 0.5, label: "Blue Romance"),
 
-                // 5. 하단 네비게이션 바 (navi)
-                Positioned(
-                  bottom: 0,
-                  child: _buildBottomNav(),
-                ),
+                // 5. 하단 네비게이션 바 삭제됨 (MainScreen에서 처리)
               ],
             ),
           ),
@@ -69,7 +64,7 @@ class LibraryScreen extends StatelessWidget {
     );
   }
 
-// _buildAppBar 메서드 수정 (context 인자 추가)
+  // _buildAppBar 메서드 수정 (context 인자 추가)
   Widget _buildAppBar(BuildContext context) {
     return Container(
       width: 390,
@@ -78,17 +73,7 @@ class LibraryScreen extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // ▼▼▼ 뒤로가기 아이콘 부분 수정 ▼▼▼
-          Positioned(
-            left: 8, // 위치 조절
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new, size: 24),
-              onPressed: () {
-                Navigator.pop(context); // 현재 화면을 닫고 이전 화면으로 이동
-              },
-            ),
-          ),
-          // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+          // 🔸 메인 탭이므로 뒤로가기 버튼 삭제
           const Text(
             '내 서재',
             style: TextStyle(
@@ -163,57 +148,10 @@ class LibraryScreen extends StatelessWidget {
       child: Container(
         width: 415,
         height: 415,
-        // 실제로는 선반 이미지가 들어가야 하는 자리입니다.
         child: Opacity(
           opacity: 0.1,
           child: Image.network('https://via.placeholder.com/415x415?text=Shelf+Shadow'),
         ),
-      ),
-    );
-  }
-
-  // 하단 네비게이션 바
-  Widget _buildBottomNav() {
-    return Container(
-      width: 390,
-      height: 76,
-      color: Colors.white,
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _navIcon(Icons.home_outlined, false),
-              _navIcon(Icons.search, false),
-              _navIcon(Icons.edit_note, false),
-              _navIcon(Icons.menu_book, true), // 서재 아이콘 활성화
-              _navIcon(Icons.person_outline, false),
-            ],
-          ),
-          const Spacer(),
-          // 홈 인디케이터 영역
-          Container(
-            width: 128,
-            height: 5,
-            margin: const EdgeInsets.only(bottom: 8),
-            decoration: BoxDecoration(
-              color: Colors.black,
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _navIcon(IconData icon, bool isActive) {
-    return Container(
-      width: 74,
-      height: 44,
-      child: Icon(
-        icon,
-        color: isActive ? Colors.black : const Color(0xFFB8B8B8),
-        size: 24,
       ),
     );
   }

@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:bookit_app/models/book_model.dart'; // 🔸 데이터 모델 임포트
-import 'package:bookit_app/screens/intro_chat_screen.dart';
-import 'package:bookit_app/screens/post_board_screen.dart'; // 🔸 게시판 화면 임포트
-import 'package:bookit_app/screens/library_screen.dart'; // 🔸 서재 화면 임포트
+import 'package:bookit_app/models/book_model.dart';
 import 'package:bookit_app/screens/admin_add_book_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -14,7 +11,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0;
+  // 🔸 [삭제] _selectedIndex 변수 제거 (MainScreen에서 관리)
 
   // 🔸 피그마 Pretendard 스타일 공통 적용 함수
   TextStyle _ptStyle({
@@ -33,37 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // 🔸 네비게이션 탭 클릭 로직 (검색, 글쓰기, 서재 이동 포함)
-  void _onItemTapped(int index) {
-    if (index == 1) {
-      // 검색 탭 -> 인트로 채팅
-      Navigator.push(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const IntroChatScreen(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-        ),
-      );
-    } else if (index == 2) {
-      // 글쓰기 탭 -> 게시판 이동
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const PostBoardScreen()),
-      );
-    } else if (index == 3) {
-      // 서재 탭 -> 내 서재 이동
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const LibraryScreen()),
-      );
-    } else {
-      setState(() {
-        _selectedIndex = index;
-      });
-    }
-  }
+  // 🔸 [삭제] _onItemTapped 함수 제거 (MainScreen에서 처리)
 
   @override
   Widget build(BuildContext context) {
@@ -99,7 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // 1. 추천 Pick 섹션 (Firestore 동적 연동)
+            // 1. 추천 Pick 섹션
             _buildTopRecommendation(),
 
             const SizedBox(height: 32),
@@ -119,7 +86,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             const SizedBox(height: 15),
 
-            // 3. 베스트 셀러 리스트 (Firestore 동적 연동)
+            // 3. 베스트 셀러 리스트
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('books')
@@ -162,27 +129,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        selectedItemColor: Colors.black,
-        unselectedItemColor: const Color(0xFFB8B8B8),
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: '홈'),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: '검색'),
-          BottomNavigationBarItem(icon: Icon(Icons.edit_outlined), label: '글쓰기'),
-          BottomNavigationBarItem(icon: Icon(Icons.menu_book), label: '서재'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: '내정보'),
-        ],
-      ),
+      // 🔸 [삭제] bottomNavigationBar 속성 전체 삭제
     );
   }
 
-  // --- 위젯 빌더 함수들 ---
-
+  // --- 위젯 빌더 함수들은 기존과 동일 (생략 가능하나 구조 확인을 위해 유지) ---
   Widget _buildTopRecommendation() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
