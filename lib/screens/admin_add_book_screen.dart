@@ -1,9 +1,6 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-// import 'dart:io'; // ◀ 이 줄이 있으면 웹에서 에러가 날 수 있으므로 절대 지워주세요.
+import '../models/book_model.dart';
 
 class AdminAddBookScreen extends StatefulWidget {
   const AdminAddBookScreen({super.key});
@@ -14,113 +11,125 @@ class AdminAddBookScreen extends StatefulWidget {
 
 class _AdminAddBookScreenState extends State<AdminAddBookScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _authorController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _priceController = TextEditingController();
-  final _categoryController = TextEditingController();
 
-  Uint8List? _imageBytes; // 웹/앱 공용 이미지 바이트 데이터
-  String? _fileName;
-  bool _isLoading = false;
+  // 입력 컨트롤러
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _authorController = TextEditingController();
+  final TextEditingController _imageUrlController = TextEditingController();
+  final TextEditingController _rankController = TextEditingController();
+  final TextEditingController _categoryController = TextEditingController();
 
-  // 이미지 선택 함수 (바이트 데이터 읽기 방식으로 통일)
-  Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final XFile? pickedFile = await picker.pickImage(source: ImageSource.gallery);
+  // 🔹 추가된 필드 컨트롤러
+  final TextEditingController _descriptionController = TextEditingController(); // 줄거리
+  final TextEditingController _priceController = TextEditingController();       // 가격
+  final TextEditingController _discountController = TextEditingController();    // 할인율
+  final TextEditingController _tagsController = TextEditingController();        // 태그 (#SF, #소설)
 
-    if (pickedFile != null) {
-      // readAsBytes()는 웹과 모바일 모두에서 파일 데이터를 가져오는 표준 방식입니다.
-      final bytes = await pickedFile.readAsBytes();
-      setState(() {
-        _imageBytes = bytes;
-        _fileName = pickedFile.name;
-      });
-    }
-  }
+  Future<void> _registerBook() async {
+    if (_formKey.currentState!.validate()) {
+      try {
+        // 태그 문자열을 리스트로 변환 (쉼표로 구분)
+        List<String> tagsList = _tagsController.text.isNotEmpty
+            ? _tagsController.text.split(',').map((e) => e.trim()).toList()
+            : [];
 
-  // 도서 등록 함수 (putData 방식으로 통일)
-  Future<void> _uploadBook() async {
-    if (!_formKey.currentState!.validate() || _imageBytes == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('이미지와 모든 정보를 입력해주세요.')));
-      return;
-    }
+        // 새 BookModel 객체 생성
+        final newBook = BookModel(
+          id: '', // Firestore에서 자동 생성됨
+          title: _titleController.text,
+          author: _authorController.text,
+          imageUrl: _imageUrlController.text,
+          rank: _rankController.text,
+          category: _categoryController.text,
+          rating: '0.0', // 초기값
+          reviewCount: '0', // 초기값
+          // 🔹 추가된 상세 정보
+          description: _descriptionController.text,
+          price: int.tryParse(_priceController.text) ?? 0,
+          discountRate: int.tryParse(_discountController.text),
+          tags: tagsList,
+        );
 
-    setState(() => _isLoading = true);
+        // Firestore에 저장
+        await FirebaseFirestore.instance.collection('books').add(newBook.toMap());
 
-    try {
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('book_covers')
-          .child('${DateTime.now().millisecondsSinceEpoch}_$_fileName');
-
-      await storageRef.putData(_imageBytes!);
-      final imageUrl = await storageRef.getDownloadURL();
-
-      // Firestore 저장 로직 수정
-      await FirebaseFirestore.instance.collection('books').add({
-        'title': _titleController.text,
-        'author': _authorController.text,
-        'description': _descriptionController.text,
-        'price': int.tryParse(_priceController.text) ?? 0,
-        'category': _categoryController.text.trim().toLowerCase(), // 소문자로 통일하여 저장
-        'imageUrl': imageUrl,
-        'createdAt': FieldValue.serverTimestamp(),
-
-        // --- 아래 필수 필드들을 추가하세요 ---
-        'rank': '1',             // 임시 순위 (홈 화면 orderBy 해결용)
-        'rating': '0.0',         // 기본 평점
-        'reviewCount': '0',      // 기본 리뷰 수
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('등록 성공!')));
-        Navigator.pop(context);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('책 등록 성공! 📚')));
+        Navigator.pop(context); // 등록 후 이전 화면으로 이동
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('에러 발생: $e')));
       }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('오류: $e')));
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('도서 등록 (관리자)')),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
+      appBar: AppBar(title: const Text("책 등록하기 (관리자)")),
+      body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
-          child: Column(
+          child: ListView(
             children: [
-              GestureDetector(
-                onTap: _pickImage,
-                child: Container(
-                  height: 200, width: 150,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    border: Border.all(color: Colors.grey),
-                  ),
-                  // ★ 핵심: Image.file을 절대 쓰지 말고 Image.memory만 사용합니다.
-                  child: _imageBytes != null
-                      ? Image.memory(_imageBytes!, fit: BoxFit.cover)
-                      : const Icon(Icons.camera_alt, size: 50),
+              _buildTextField(_titleController, '책 제목', '예: Paradox'),
+              _buildTextField(_authorController, '작가', '예: 호베루투 카를로스'),
+              _buildTextField(_imageUrlController, '이미지 URL', 'https://...'),
+              _buildTextField(_rankController, '순위', '예: 1'),
+              _buildTextField(_categoryController, '카테고리', '예: 소설'),
+
+              const Divider(height: 40, thickness: 2),
+              const Text("📖 상세 페이지 정보", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+
+              _buildTextField(_priceController, '정가 (원)', '예: 13000', isNumber: true),
+              _buildTextField(_discountController, '할인율 (%)', '예: 10 (선택사항)', isNumber: true),
+              _buildTextField(_tagsController, '태그 (쉼표로 구분)', '예: #SF, #미스테리, #소설'),
+
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: _descriptionController,
+                maxLines: 5,
+                decoration: const InputDecoration(
+                  labelText: '줄거리',
+                  border: OutlineInputBorder(),
+                  hintText: '책의 줄거리를 입력하세요.',
                 ),
               ),
-              const SizedBox(height: 16),
-              TextFormField(controller: _titleController, decoration: const InputDecoration(labelText: '제목')),
-              TextFormField(controller: _authorController, decoration: const InputDecoration(labelText: '저자')),
-              TextFormField(controller: _categoryController, decoration: const InputDecoration(labelText: '카테고리')),
-              TextFormField(controller: _priceController, decoration: const InputDecoration(labelText: '가격'), keyboardType: TextInputType.number),
-              TextFormField(controller: _descriptionController, decoration: const InputDecoration(labelText: '설명'), maxLines: 3),
-              const SizedBox(height: 24),
-              ElevatedButton(onPressed: _uploadBook, child: const Text('저장하기')),
+
+              const SizedBox(height: 30),
+              ElevatedButton(
+                onPressed: _registerBook,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: Colors.blueAccent,
+                ),
+                child: const Text("책 등록 완료", style: TextStyle(fontSize: 18, color: Colors.white)),
+              ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildTextField(TextEditingController controller, String label, String hint, {bool isNumber = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: TextFormField(
+        controller: controller,
+        keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          border: const OutlineInputBorder(),
+        ),
+        validator: (value) {
+          if (!isNumber && (value == null || value.isEmpty)) {
+            return '$label을(를) 입력해주세요';
+          }
+          return null;
+        },
       ),
     );
   }

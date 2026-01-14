@@ -4,6 +4,7 @@ import 'package:bookit_app/screens/home_screen.dart';
 import 'package:bookit_app/screens/intro_chat_screen.dart';
 import 'package:bookit_app/screens/post_board_screen.dart';
 import 'package:bookit_app/screens/library_screen.dart';
+import 'package:bookit_app/screens/mypage_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -21,7 +22,7 @@ class _MainScreenState extends State<MainScreen> {
     const IntroChatScreen(),   // 1: 검색(부기 인트로)
     const PostBoardScreen(),   // 2: 글쓰기(게시판)
     const LibraryScreen(),     // 3: 서재
-    const Center(child: Text('내 정보 화면')), // 4: 내정보 (임시)
+    const MyPageScreen(),      // 4: 내정보 (관리자 메뉴 포함)
   ];
 
   void _onItemTapped(int index) {
@@ -29,6 +30,7 @@ class _MainScreenState extends State<MainScreen> {
       _selectedIndex = index;
     });
   }
+
 
   @override
   Widget build(BuildContext context) {
