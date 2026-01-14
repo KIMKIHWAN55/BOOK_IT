@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:bookit_app/models/book_model.dart';
-import 'package:bookit_app/screens/admin_add_book_screen.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -38,15 +38,6 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: Colors.white,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        leading: IconButton(
-            onPressed: () {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const AdminAddBookScreen())
-              );
-            },
-            icon: const Icon(Icons.menu, color: Colors.white)
-        ),
         actions: [
           IconButton(
               onPressed: () {

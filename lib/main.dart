@@ -14,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart'; // 🔸 추가됨
 import 'package:bookit_app/screens/library_screen.dart';
 import 'firebase_options.dart';
 
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -53,7 +54,7 @@ class BookitApp extends StatelessWidget {
 
       routes: {
         '/intro': (context) => const AppIntroScreen(),
-        '/home': (context) => const HomeScreen(),
+        '/home': (context) => const MainScreen(),
         '/login': (context) => const LoginScreen(),
         '/signup': (context) => const SignUpScreen(),
         '/intro_chat': (context) => const IntroChatScreen(),
