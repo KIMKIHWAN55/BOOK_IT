@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:bookit_app/models/book_model.dart';
+import 'package:bookit_app/screens/book_detail_screen.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -83,35 +84,58 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 15),
 
             // 3. 베스트 셀러 리스트
+// 3. 베스트 셀러 리스트 영역
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('books')
-                  .where('category', isEqualTo: 'bestseller')
-                  .orderBy('rank')
+                  .orderBy('rank') // 순위별로 정렬해서 가져옴
                   .snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.hasError) return const Center(child: Text('데이터를 불러오지 못했습니다.'));
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: Padding(
-                    padding: EdgeInsets.all(20.0),
-                    child: CircularProgressIndicator(),
-                  ));
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
                 }
 
                 final docs = snapshot.data!.docs;
-                final books = docs.map((doc) => BookModel.fromFirestore(doc)).toList();
 
-                if (books.isEmpty) return const Center(child: Text('등록된 베스트셀러가 없습니다.'));
+                // 1위~9위 사이의 책만 필터링하는 로직
+                final bestSellerBooks = docs.map((doc) {
+                  return BookModel.fromFirestore(doc);
+                }).where((book) {
+                  // rank를 숫자로 변환해서 1~9 사이인지 확인
+                  int? r = int.tryParse(book.rank);
+                  return r != null && r >= 1 && r <= 9;
+                }).toList();
+
+                if (bestSellerBooks.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Center(child: Text("등록된 베스트셀러가 없습니다.")),
+                  );
+                }
 
                 return Column(
-                  children: books.map((book) => _buildBestsellerItem(
-                    rank: book.rank,
-                    title: book.title,
-                    author: book.author,
-                    imageUrl: book.imageUrl,
-                    rating: book.rating,
-                    reviewCount: book.reviewCount,
-                  )).toList(),
+                  children: bestSellerBooks.map((book) {
+                    // 👇 책을 클릭하면 상세페이지로 이동하는 기능 추가
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => BookDetailScreen(book: book),
+                          ),
+                        );
+                      },
+                      // 기존에 만든 아이템 위젯 재사용
+                      child: _buildBestsellerItem(
+                        rank: book.rank,
+                        title: book.title,
+                        author: book.author,
+                        imageUrl: book.imageUrl,
+                        rating: book.rating,
+                        reviewCount: book.reviewCount,
+                      ),
+                    );
+                  }).toList(),
                 );
               },
             ),

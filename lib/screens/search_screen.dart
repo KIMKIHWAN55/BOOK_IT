@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:bookit_app/models/book_model.dart';
+import 'book_detail_screen.dart'; // 👈 상세 페이지 import 필수
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -44,13 +45,13 @@ class _SearchScreenState extends State<SearchScreen> {
       ),
       body: Column(
         children: [
-          // --- 1. 검색창 (Frame 1000002914) ---
+          // --- 1. 검색창 ---
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Container(
               height: 46,
               decoration: BoxDecoration(
-                color: const Color(0xF1F1F5F5).withOpacity(1.0), // #F1F1F5
+                color: const Color(0xFFF1F1F5),
                 borderRadius: BorderRadius.circular(24),
               ),
               child: TextField(
@@ -62,7 +63,10 @@ class _SearchScreenState extends State<SearchScreen> {
                 },
                 decoration: InputDecoration(
                   hintText: '찾고 싶은 책, 작가, 장르를 입력해주세요',
-                  hintStyle: _ptStyle(size: 14, weight: FontWeight.w400, color: const Color(0xFF767676)),
+                  hintStyle: _ptStyle(
+                      size: 14,
+                      weight: FontWeight.w400,
+                      color: const Color(0xFF767676)),
                   prefixIcon: const Padding(
                     padding: EdgeInsets.only(left: 12, right: 8),
                     child: Icon(Icons.search, color: Color(0xFF767676), size: 24),
@@ -81,28 +85,45 @@ class _SearchScreenState extends State<SearchScreen> {
             child: _searchText.isEmpty
                 ? _buildEmptyState()
                 : StreamBuilder<QuerySnapshot>(
-              // Firestore에서 제목(title) 기준 검색
               stream: FirebaseFirestore.instance
                   .collection('books')
                   .where('title', isGreaterThanOrEqualTo: _searchText)
                   .where('title', isLessThanOrEqualTo: '$_searchText\uf8ff')
                   .snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.hasError) return const Center(child: Text("오류가 발생했습니다."));
+                if (snapshot.hasError) {
+                  return const Center(child: Text("오류가 발생했습니다."));
+                }
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
                 final docs = snapshot.data!.docs;
-                if (docs.isEmpty) return const Center(child: Text("검색 결과가 없습니다."));
+                if (docs.isEmpty) {
+                  return const Center(child: Text("검색 결과가 없습니다."));
+                }
 
-                final books = docs.map((doc) => BookModel.fromFirestore(doc)).toList();
+                final books =
+                docs.map((doc) => BookModel.fromFirestore(doc)).toList();
 
                 return ListView.builder(
                   padding: const EdgeInsets.only(top: 10),
                   itemCount: books.length,
                   itemBuilder: (context, index) {
-                    return _buildSearchResultItem(books[index]);
+                    final book = books[index];
+                    // 👇 상세 페이지 이동 기능 추가됨
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                BookDetailScreen(book: book),
+                          ),
+                        );
+                      },
+                      child: _buildSearchResultItem(book),
+                    );
                   },
                 );
               },
@@ -113,7 +134,7 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  // --- 3. 검색 결과 아이템 (Frame 14 / 27 / 26 디자인 반영) ---
+  // --- 3. 검색 결과 아이템 ---
   Widget _buildSearchResultItem(BookModel book) {
     return Container(
       width: double.infinity,
@@ -126,7 +147,7 @@ class _SearchScreenState extends State<SearchScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // 책 표지 (Rectangle 5896)
+          // 책 표지
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: Image.network(
@@ -135,7 +156,9 @@ class _SearchScreenState extends State<SearchScreen> {
               height: 110,
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) => Container(
-                width: 73, height: 110, color: Colors.grey[200],
+                width: 73,
+                height: 110,
+                color: Colors.grey[200],
                 child: const Icon(Icons.book, color: Colors.grey),
               ),
             ),
@@ -156,13 +179,20 @@ class _SearchScreenState extends State<SearchScreen> {
                 const SizedBox(height: 5),
                 Text(
                   book.author,
-                  style: _ptStyle(size: 14, weight: FontWeight.w400, color: const Color(0xFF777777)),
+                  style: _ptStyle(
+                      size: 14,
+                      weight: FontWeight.w400,
+                      color: const Color(0xFF777777)),
                 ),
               ],
             ),
           ),
           // 더보기 버튼
-          Text('더보기', style: _ptStyle(size: 14, weight: FontWeight.w400, color: const Color(0xFF767676))),
+          Text('더보기',
+              style: _ptStyle(
+                  size: 14,
+                  weight: FontWeight.w400,
+                  color: const Color(0xFF767676))),
         ],
       ),
     );
@@ -172,7 +202,8 @@ class _SearchScreenState extends State<SearchScreen> {
     return Center(
       child: Text(
         "검색어를 입력하여 책을 찾아보세요",
-        style: _ptStyle(size: 14, weight: FontWeight.w400, color: const Color(0xFF767676)),
+        style: _ptStyle(
+            size: 14, weight: FontWeight.w400, color: const Color(0xFF767676)),
       ),
     );
   }
