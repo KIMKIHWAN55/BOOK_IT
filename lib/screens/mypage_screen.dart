@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'admin_add_book_screen.dart';
 import 'login_screen.dart'; // 로그인 화면 import
+import 'admin_book_list_screen.dart';
 
 class MyPageScreen extends StatefulWidget {
   const MyPageScreen({super.key});
@@ -115,6 +116,19 @@ class _MyPageScreenState extends State<MyPageScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const AdminAddBookScreen()),
+                  );
+                },
+              ),
+              // 2) 🆕 추가된 수정/삭제 메뉴
+              ListTile(
+                leading: const Icon(Icons.edit_note, color: Colors.orange),
+                title: const Text("등록된 책 관리 (수정/삭제)"), // 👈 사용자가 원한 메뉴
+                subtitle: const Text("등록된 책을 수정하거나 삭제합니다."),
+                onTap: () {
+                  // 리스트 화면으로 이동
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AdminBookListScreen()),
                   );
                 },
               ),
