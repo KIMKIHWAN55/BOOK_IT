@@ -34,7 +34,7 @@ class AdminBookListScreen extends StatelessWidget {
       appBar: AppBar(title: const Text("등록된 책 관리")),
       body: StreamBuilder<QuerySnapshot>(
         // 최신 등록순으로 정렬
-        stream: FirebaseFirestore.instance.collection('books').orderBy('id').snapshots(),
+        stream: FirebaseFirestore.instance.collection('books').snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
           if (snapshot.data!.docs.isEmpty) {
