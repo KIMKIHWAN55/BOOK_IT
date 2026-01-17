@@ -6,6 +6,7 @@ import 'package:bookit_app/screens/admin_book_list_screen.dart';
 import 'package:bookit_app/screens/admin_add_book_screen.dart';
 import 'package:bookit_app/screens/profile_edit_screen.dart';
 import 'package:bookit_app/models/user_model.dart';
+import 'package:bookit_app/screens/settings_screen.dart';
 
 class MyPageScreen extends StatefulWidget {
   const MyPageScreen({super.key});
@@ -14,225 +15,359 @@ class MyPageScreen extends StatefulWidget {
   State<MyPageScreen> createState() => _MyPageScreenState();
 }
 
-class _MyPageScreenState extends State<MyPageScreen> {
+class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderStateMixin {
   final User? _user = FirebaseAuth.instance.currentUser;
   bool _isAdmin = false;
   UserModel? _userModel;
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _checkAdmin();
     _fetchUserData();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   // 관리자 여부 확인
   Future<void> _checkAdmin() async {
     if (_user != null) {
       final doc = await FirebaseFirestore.instance.collection('users').doc(_user!.uid).get();
-      if (doc.exists && doc.data()!['role'] == 'admin') {
-        setState(() => _isAdmin = true);
+      if (doc.exists && doc.data() != null && doc.data()!['role'] == 'admin') {
+        if (mounted) setState(() => _isAdmin = true);
       }
     }
   }
 
-  // 사용자 정보 가져오기
+  // 사용자 정보 불러오기
   Future<void> _fetchUserData() async {
     if (_user != null) {
       final doc = await FirebaseFirestore.instance.collection('users').doc(_user!.uid).get();
       if (doc.exists) {
-        setState(() {
-          _userModel = UserModel.fromMap(doc.data()!);
-        });
+        if (mounted) {
+          setState(() {
+            _userModel = UserModel.fromFirestore(doc);
+          });
+        }
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // 로그인 안 된 상태 처리
-    if (_user == null) {
-      return const Scaffold(body: Center(child: Text("로그인이 필요합니다.")));
-    }
+    if (_user == null) return const Scaffold(body: Center(child: Text("로그인이 필요합니다.")));
 
-    // ★ 1. 관리자(Admin) 전용 화면
-    if (_isAdmin) {
-      return DefaultTabController(
-        length: 2, // 탭 개수: 등록, 수정
-        child: Scaffold(
-          appBar: AppBar(
-            title: const Text('관리자 페이지', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
-            backgroundColor: Colors.white,
-            elevation: 0,
-            centerTitle: true,
-            actions: [
-              // 로그아웃 버튼
-              IconButton(
-                icon: const Icon(Icons.logout, color: Colors.grey),
-                onPressed: _handleLogout,
-              ),
-            ],
-            bottom: const TabBar(
-              labelColor: Color(0xFFD45858),
-              unselectedLabelColor: Colors.grey,
-              indicatorColor: Color(0xFFD45858),
-              tabs: [
-                Tab(text: "도서 등록"),
-                Tab(text: "도서 수정/관리"),
-              ],
-            ),
-          ),
-          body: const TabBarView(
-            children: [
-              // 탭 1: 도서 등록 화면
-              AdminAddBookScreen(),
-              // 탭 2: 도서 리스트 (수정/삭제) 화면
-              AdminBookListScreen(),
-            ],
-          ),
-        ),
-      );
-    }
+    // ★ 관리자(Admin) UI
+    if (_isAdmin) return _buildAdminLayout();
 
-    // ★ 2. 일반 사용자 화면 (기존 코드 유지 + 프로필 편집 기능)
+    // ★ 일반 사용자(User) UI
+    return _buildUserLayout();
+  }
+
+  // ============================================================
+  //  1. 관리자(Admin) 레이아웃
+  // ============================================================
+  Widget _buildAdminLayout() {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('내 정보', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.grey),
-            onPressed: _handleLogout,
-          ),
-        ],
-      ),
-      body: DefaultTabController(
-        length: 2,
+      backgroundColor: const Color(0xFFF1F1F5), // 배경색
+      appBar: _buildAppBar(title: "관리자 페이지"),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Column(
           children: [
-            const SizedBox(height: 20),
-            // 프로필 영역 (일반 사용자만 보임)
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ProfileEditScreen()),
-                ).then((_) => _fetchUserData());
-              },
-              child: Column(
+            const SizedBox(height: 20), // Top spacing (approx 100px from top including appbar)
+
+            // 1. 프로필 카드
+            _buildInfoCard(
+              child: Row(
                 children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: Colors.grey[200],
-                    backgroundImage: _userModel?.profileImage != null && _userModel!.profileImage!.isNotEmpty
-                        ? NetworkImage(_userModel!.profileImage!)
-                        : null,
-                    child: _userModel?.profileImage == null || _userModel!.profileImage!.isEmpty
-                        ? const Icon(Icons.person, size: 50, color: Colors.grey)
-                        : null,
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        _userModel?.nickname ?? '사용자',
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.edit, size: 16, color: Colors.grey),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _user?.email ?? '',
-                    style: const TextStyle(color: Colors.grey, fontSize: 14),
+                  _buildProfileImage(size: 50),
+                  const SizedBox(width: 14),
+                  const Text(
+                    '관리자',
+                    style: TextStyle(fontFamily: 'Pretendard', fontSize: 18, fontWeight: FontWeight.w500, color: Color(0xFF222222)),
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // 2. 도서 등록 카드
+            GestureDetector(
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminAddBookScreen())),
+              child: _buildInfoCard(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: const [
+                    Text('도서 등록', style: TextStyle(fontFamily: 'Pretendard', fontSize: 18, fontWeight: FontWeight.w500, color: Color(0xFF222222))),
+                    Icon(Icons.chevron_right, size: 24, color: Colors.black),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // 3. 도서 수정 카드
+            GestureDetector(
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminBookListScreen())),
+              child: _buildInfoCard(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: const [
+                    Text('도서 수정', style: TextStyle(fontFamily: 'Pretendard', fontSize: 18, fontWeight: FontWeight.w500, color: Color(0xFF222222))),
+                    Icon(Icons.chevron_right, size: 24, color: Colors.black),
+                  ],
+                ),
               ),
             ),
 
             const SizedBox(height: 30),
-
-            // 탭 바 (좋아요 목록)
-            const TabBar(
-              labelColor: Colors.black,
-              unselectedLabelColor: Colors.grey,
-              indicatorColor: Color(0xFFD45858),
-              tabs: [
-                Tab(text: "좋아요한 책"),
-                Tab(text: "좋아요한 피드"),
-              ],
-            ),
-
-            // 탭 내용
-            Expanded(
-              child: TabBarView(
-                children: [
-                  _buildLikedBooks(),
-                  _buildLikedFeeds(),
-                ],
-              ),
-            ),
+            _buildLogoutButton(),
           ],
         ),
       ),
     );
   }
 
-  // 로그아웃 로직 분리
-  Future<void> _handleLogout() async {
-    await FirebaseAuth.instance.signOut();
-    if (mounted) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-            (route) => false,
-      );
-    }
+  // ============================================================
+  //  2. 일반 사용자(User) 레이아웃
+  // ============================================================
+  Widget _buildUserLayout() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF1F1F5), // 배경색 #F1F1F5
+      appBar: _buildAppBar(title: "내 정보"),
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) {
+          return [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 20),
+                    // 1. 프로필 카드 (편집 기능 포함)
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const ProfileEditScreen()),
+                        ).then((_) => _fetchUserData());
+                      },
+                      child: _buildInfoCard(
+                        child: Row(
+                          children: [
+                            _buildProfileImage(size: 50),
+                            const SizedBox(width: 14),
+                            Text(
+                              _userModel?.nickname ?? '사용자',
+                              style: const TextStyle(fontFamily: 'Pretendard', fontSize: 18, fontWeight: FontWeight.w500, color: Color(0xFF222222)),
+                            ),
+                            const Spacer(),
+                            const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // 2. 소개 카드 (Intro)
+                    _buildInfoCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "안녕 나는 ${_userModel?.nickname ?? '사용자'}이야 반가워",
+                            style: const TextStyle(fontFamily: 'Pretendard', fontSize: 16, color: Color(0xFF222222)),
+                          ),
+                          const SizedBox(height: 4),
+                          // TODO: 실제 데이터바인딩 필요. 임시 텍스트
+                          const Text(
+                            "# SF # 추리 #로맨스 장르 좋아해",
+                            style: TextStyle(fontFamily: 'Pretendard', fontSize: 16, color: Color(0xFF196DF8)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ),
+
+            // 3. 탭바 (Sticky Header 효과를 위해 SliverPersistentHeader 사용 권장이나, 간단하게 구현)
+            SliverPersistentHeader(
+              delegate: _SliverAppBarDelegate(
+                TabBar(
+                  controller: _tabController,
+                  labelColor: const Color(0xFF000000),
+                  unselectedLabelColor: const Color(0xFF767676),
+                  indicatorColor: const Color(0xFFED7777), // 핑크빛 포인트
+                  indicatorWeight: 2,
+                  labelStyle: const TextStyle(fontFamily: 'Pretendard', fontSize: 16, fontWeight: FontWeight.w600),
+                  tabs: const [
+                    Tab(text: "좋아요한 책"),
+                    Tab(text: "좋아요한 피드"),
+                  ],
+                ),
+              ),
+              pinned: true,
+            ),
+          ];
+        },
+        body: TabBarView(
+          controller: _tabController,
+          children: [
+            _buildLikedBooksList(), // 책 목록
+            _buildLikedFeedsList(), // 피드 목록
+          ],
+        ),
+      ),
+    );
   }
 
-  // 좋아요한 책 리스트 (일반 사용자용)
-  Widget _buildLikedBooks() {
+  // --- [위젯 구성 요소] ---
+
+  PreferredSizeWidget _buildAppBar({required String title}) {
+    return AppBar(
+      backgroundColor: const Color(0xFFF1F1F5),
+      elevation: 0,
+      centerTitle: true,
+      title: Text(title, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 17)),
+      leading: IconButton(icon: const Icon(Icons.menu, color: Colors.black), onPressed: () {}),
+      actions: [
+        IconButton(icon: const Icon(Icons.notifications_none, color: Colors.black), onPressed: () {}),
+        IconButton(
+          icon: const Icon(Icons.settings_outlined, color: Colors.black),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const SettingsScreen()),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  // 카드 공통 디자인 (CSS Frame 300, 308 등)
+  Widget _buildInfoCard({required Widget child}) {
+    return Container(
+      width: double.infinity,
+      height: 72,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            offset: const Offset(1, 1),
+            blurRadius: 1,
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildProfileImage({required double size}) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F4F4),
+        shape: BoxShape.circle,
+        image: _userModel?.profileImage != null && _userModel!.profileImage!.isNotEmpty
+            ? DecorationImage(image: NetworkImage(_userModel!.profileImage!), fit: BoxFit.cover)
+            : null,
+      ),
+      child: _userModel?.profileImage == null || _userModel!.profileImage!.isEmpty
+          ? Icon(Icons.person, size: size * 0.6, color: Colors.grey)
+          : null,
+    );
+  }
+
+  // 좋아요한 책 리스트 (CSS Frame 306, 301 스타일)
+  Widget _buildLikedBooksList() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(_user!.uid)
-          .collection('liked_books')
-          .snapshots(),
+      stream: FirebaseFirestore.instance.collection('users').doc(_user!.uid).collection('liked_books').snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         if (snapshot.data!.docs.isEmpty) {
           return const Center(child: Text("좋아요한 책이 없습니다.", style: TextStyle(color: Colors.grey)));
         }
-        return GridView.builder(
-          padding: const EdgeInsets.all(16),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            childAspectRatio: 0.7,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-          ),
+
+        return ListView.builder(
+          padding: const EdgeInsets.only(top: 10, bottom: 20),
           itemCount: snapshot.data!.docs.length,
           itemBuilder: (context, index) {
             var book = snapshot.data!.docs[index];
-            return Column(
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      book['imageUrl'] ?? '',
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(color: Colors.grey[300]),
+            return Container(
+              height: 136,
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border(bottom: BorderSide(color: const Color(0xFFD1D1D1).withOpacity(0.5), width: 0.5)),
+                // 첫 번째 아이템 상단 라운드, 마지막 아이템 하단 라운드 처리 로직은 생략하거나 Container 전체 감싸기로 가능
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                child: Row(
+                  children: [
+                    // 책 표지
+                    Container(
+                      width: 73,
+                      height: 110,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(6),
+                        color: Colors.grey[200],
+                        image: DecorationImage(
+                          image: NetworkImage(book['imageUrl'] ?? ''),
+                          fit: BoxFit.cover,
+                          onError: (e, s) {},
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 20),
+                    // 책 정보
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            book['title'] ?? '제목 없음',
+                            style: const TextStyle(fontFamily: 'Pretendard', fontSize: 16, fontWeight: FontWeight.w500, letterSpacing: -0.5),
+                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            book['author'] ?? '저자 미상',
+                            style: const TextStyle(fontFamily: 'Pretendard', fontSize: 14, color: Color(0xFF777777), letterSpacing: -0.5),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: const [
+                              Icon(Icons.star, size: 14, color: Color(0xFFFBBC05)),
+                              SizedBox(width: 2),
+                              Text("4.7", style: TextStyle(fontFamily: 'Pretendard', fontSize: 12, fontWeight: FontWeight.w400)),
+                              SizedBox(width: 4),
+                              Text("(13)", style: TextStyle(fontFamily: 'Pretendard', fontSize: 12, color: Color(0xFF777777))),
+                            ],
+                          )
+                        ],
+                      ),
+                    )
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(book['title'] ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
-              ],
+              ),
             );
           },
         );
@@ -240,33 +375,50 @@ class _MyPageScreenState extends State<MyPageScreen> {
     );
   }
 
-  // 좋아요한 피드 리스트 (일반 사용자용)
-  Widget _buildLikedFeeds() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(_user!.uid)
-          .collection('liked_feeds')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        if (snapshot.data!.docs.isEmpty) {
-          return const Center(child: Text("좋아요한 피드가 없습니다.", style: TextStyle(color: Colors.grey)));
-        }
-        return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: snapshot.data!.docs.length,
-          separatorBuilder: (_, __) => const Divider(),
-          itemBuilder: (context, index) {
-            var feed = snapshot.data!.docs[index];
-            return ListTile(
-              title: Text(feed['content'] ?? '', maxLines: 2, overflow: TextOverflow.ellipsis),
-              subtitle: Text(feed['bookTitle'] ?? ''),
-              trailing: const Icon(Icons.favorite, color: Colors.red),
-            );
-          },
-        );
-      },
+  Widget _buildLikedFeedsList() {
+    return const Center(child: Text("좋아요한 피드 목록 준비 중", style: TextStyle(color: Colors.grey)));
+  }
+
+  Widget _buildLogoutButton() {
+    return TextButton(
+      onPressed: _handleLogout,
+      child: const Text("로그아웃", style: TextStyle(color: Colors.grey, decoration: TextDecoration.underline)),
     );
   }
+
+  Future<void> _handleLogout() async {
+    await FirebaseAuth.instance.signOut();
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const LoginScreen()), (route) => false);
+    }
+  }
+}
+
+// 탭바를 고정시키기 위한 Delegate 클래스
+class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
+  final TabBar _tabBar;
+  _SliverAppBarDelegate(this._tabBar);
+
+  @override
+  double get minExtent => _tabBar.preferredSize.height;
+  @override
+  double get maxExtent => _tabBar.preferredSize.height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: const Color(0xFFF1F1F5), // 탭바 배경색
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
+        ),
+        child: _tabBar,
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) => false;
 }
