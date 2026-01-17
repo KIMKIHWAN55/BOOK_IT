@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'admin_add_book_screen.dart';
-import 'login_screen.dart'; // 로그인 화면 import
-import 'admin_book_list_screen.dart';
+import 'package:bookit_app/screens/login_screen.dart';
+import 'package:bookit_app/screens/admin_book_list_screen.dart';
+import 'package:bookit_app/screens/admin_add_book_screen.dart';
+import 'package:bookit_app/screens/profile_edit_screen.dart';
+import 'package:bookit_app/models/user_model.dart';
 
 class MyPageScreen extends StatefulWidget {
   const MyPageScreen({super.key});
@@ -13,129 +15,258 @@ class MyPageScreen extends StatefulWidget {
 }
 
 class _MyPageScreenState extends State<MyPageScreen> {
-  final User? user = FirebaseAuth.instance.currentUser;
-  bool isAdmin = false;
+  final User? _user = FirebaseAuth.instance.currentUser;
+  bool _isAdmin = false;
+  UserModel? _userModel;
 
   @override
   void initState() {
     super.initState();
     _checkAdmin();
+    _fetchUserData();
   }
 
-  // 🔹 관리자 여부 확인 (Firestore의 users 컬렉션에서 role 필드 확인)
+  // 관리자 여부 확인
   Future<void> _checkAdmin() async {
-    if (user != null) {
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user!.uid)
-          .get();
+    if (_user != null) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(_user!.uid).get();
+      if (doc.exists && doc.data()!['role'] == 'admin') {
+        setState(() => _isAdmin = true);
+      }
+    }
+  }
 
-      if (userDoc.exists && userDoc.data() != null) {
-        // 'role' 필드가 'admin'이면 관리자로 간주
-        Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
-        if (data['role'] == 'admin') {
-          setState(() {
-            isAdmin = true;
-          });
-        }
+  // 사용자 정보 가져오기
+  Future<void> _fetchUserData() async {
+    if (_user != null) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(_user!.uid).get();
+      if (doc.exists) {
+        setState(() {
+          _userModel = UserModel.fromMap(doc.data()!);
+        });
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("내 정보"),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-              if(!mounted) return;
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-              );
-            },
-          )
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. 프로필 섹션
-            Row(
-              children: [
-                const CircleAvatar(
-                  radius: 30,
-                  backgroundImage: AssetImage('assets/images/boogi_final.png'), // 기본 이미지
-                  backgroundColor: Colors.grey,
-                ),
-                const SizedBox(width: 16),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      user?.email ?? "게스트",
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    const Text("독서하기 좋은 날이네요! 📚", style: TextStyle(color: Colors.grey)),
-                  ],
-                )
-              ],
-            ),
-            const SizedBox(height: 30),
-            const Divider(),
+    // 로그인 안 된 상태 처리
+    if (_user == null) {
+      return const Scaffold(body: Center(child: Text("로그인이 필요합니다.")));
+    }
 
-            // 2. 일반 메뉴 (예시)
-            ListTile(
-              leading: const Icon(Icons.favorite_border),
-              title: const Text("찜한 목록"),
-              onTap: () {},
-            ),
-            ListTile(
-              leading: const Icon(Icons.history),
-              title: const Text("대출 기록"),
-              onTap: () {},
-            ),
-
-            // 3. 👑 관리자 전용 메뉴 (isAdmin이 true일 때만 보임)
-            if (isAdmin) ...[
-              const Divider(),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 10),
-                child: Text("관리자 메뉴", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
-              ),
-              ListTile(
-                leading: const Icon(Icons.add_box, color: Colors.red),
-                title: const Text("책 등록 & 상세정보 관리"),
-                subtitle: const Text("새로운 도서를 등록합니다."),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const AdminAddBookScreen()),
-                  );
-                },
-              ),
-              // 2) 🆕 추가된 수정/삭제 메뉴
-              ListTile(
-                leading: const Icon(Icons.edit_note, color: Colors.orange),
-                title: const Text("등록된 책 관리 (수정/삭제)"), // 👈 사용자가 원한 메뉴
-                subtitle: const Text("등록된 책을 수정하거나 삭제합니다."),
-                onTap: () {
-                  // 리스트 화면으로 이동
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const AdminBookListScreen()),
-                  );
-                },
+    // ★ 1. 관리자(Admin) 전용 화면
+    if (_isAdmin) {
+      return DefaultTabController(
+        length: 2, // 탭 개수: 등록, 수정
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('관리자 페이지', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
+            backgroundColor: Colors.white,
+            elevation: 0,
+            centerTitle: true,
+            actions: [
+              // 로그아웃 버튼
+              IconButton(
+                icon: const Icon(Icons.logout, color: Colors.grey),
+                onPressed: _handleLogout,
               ),
             ],
+            bottom: const TabBar(
+              labelColor: Color(0xFFD45858),
+              unselectedLabelColor: Colors.grey,
+              indicatorColor: Color(0xFFD45858),
+              tabs: [
+                Tab(text: "도서 등록"),
+                Tab(text: "도서 수정/관리"),
+              ],
+            ),
+          ),
+          body: const TabBarView(
+            children: [
+              // 탭 1: 도서 등록 화면
+              AdminAddBookScreen(),
+              // 탭 2: 도서 리스트 (수정/삭제) 화면
+              AdminBookListScreen(),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // ★ 2. 일반 사용자 화면 (기존 코드 유지 + 프로필 편집 기능)
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text('내 정보', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.grey),
+            onPressed: _handleLogout,
+          ),
+        ],
+      ),
+      body: DefaultTabController(
+        length: 2,
+        child: Column(
+          children: [
+            const SizedBox(height: 20),
+            // 프로필 영역 (일반 사용자만 보임)
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ProfileEditScreen()),
+                ).then((_) => _fetchUserData());
+              },
+              child: Column(
+                children: [
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Colors.grey[200],
+                    backgroundImage: _userModel?.profileImage != null && _userModel!.profileImage!.isNotEmpty
+                        ? NetworkImage(_userModel!.profileImage!)
+                        : null,
+                    child: _userModel?.profileImage == null || _userModel!.profileImage!.isEmpty
+                        ? const Icon(Icons.person, size: 50, color: Colors.grey)
+                        : null,
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _userModel?.nickname ?? '사용자',
+                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.edit, size: 16, color: Colors.grey),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _user?.email ?? '',
+                    style: const TextStyle(color: Colors.grey, fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 30),
+
+            // 탭 바 (좋아요 목록)
+            const TabBar(
+              labelColor: Colors.black,
+              unselectedLabelColor: Colors.grey,
+              indicatorColor: Color(0xFFD45858),
+              tabs: [
+                Tab(text: "좋아요한 책"),
+                Tab(text: "좋아요한 피드"),
+              ],
+            ),
+
+            // 탭 내용
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _buildLikedBooks(),
+                  _buildLikedFeeds(),
+                ],
+              ),
+            ),
           ],
         ),
       ),
+    );
+  }
+
+  // 로그아웃 로직 분리
+  Future<void> _handleLogout() async {
+    await FirebaseAuth.instance.signOut();
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+            (route) => false,
+      );
+    }
+  }
+
+  // 좋아요한 책 리스트 (일반 사용자용)
+  Widget _buildLikedBooks() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(_user!.uid)
+          .collection('liked_books')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        if (snapshot.data!.docs.isEmpty) {
+          return const Center(child: Text("좋아요한 책이 없습니다.", style: TextStyle(color: Colors.grey)));
+        }
+        return GridView.builder(
+          padding: const EdgeInsets.all(16),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            childAspectRatio: 0.7,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+          ),
+          itemCount: snapshot.data!.docs.length,
+          itemBuilder: (context, index) {
+            var book = snapshot.data!.docs[index];
+            return Column(
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      book['imageUrl'] ?? '',
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(color: Colors.grey[300]),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(book['title'] ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // 좋아요한 피드 리스트 (일반 사용자용)
+  Widget _buildLikedFeeds() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(_user!.uid)
+          .collection('liked_feeds')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        if (snapshot.data!.docs.isEmpty) {
+          return const Center(child: Text("좋아요한 피드가 없습니다.", style: TextStyle(color: Colors.grey)));
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: snapshot.data!.docs.length,
+          separatorBuilder: (_, __) => const Divider(),
+          itemBuilder: (context, index) {
+            var feed = snapshot.data!.docs[index];
+            return ListTile(
+              title: Text(feed['content'] ?? '', maxLines: 2, overflow: TextOverflow.ellipsis),
+              subtitle: Text(feed['bookTitle'] ?? ''),
+              trailing: const Icon(Icons.favorite, color: Colors.red),
+            );
+          },
+        );
+      },
     );
   }
 }

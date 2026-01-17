@@ -38,19 +38,27 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // 구글 로그인 함수
+// 구글 로그인 함수 (수정됨)
   Future<void> _signInWithGoogle() async {
     setState(() => _isLoading = true);
     try {
-      // 웹 플랫폼일 경우
+      // 1. 웹 플랫폼일 경우
       if (kIsWeb) {
         final provider = GoogleAuthProvider();
         await _auth.signInWithPopup(provider);
-      } else {
-        // 모바일 플랫폼일 경우
-        await _googleSignIn.signOut().catchError((_) {});
+      }
+      // 2. 모바일(Android/iOS)일 경우
+      else {
+        // [중요] 로그인 시도 전에 반드시 초기화(initialize)를 수행해야 합니다.
+        // 아까 찾아내신 '웹 클라이언트 ID'를 여기에 넣습니다.
+        await _googleSignIn.initialize(
+          serverClientId: '318946402557-h2ub52o8ltcj0cqssgfnk0pn4sscbash.apps.googleusercontent.com',
+        );
 
-        // UI로 인증 시작 (signIn() 대신 authenticate() 사용)
+        // 기존 로그인 상태가 꼬였을 수 있으니 로그아웃 후 다시 시도 (선택 사항)
+        // await _googleSignIn.signOut();
+
+        // 3. 인증 요청 (signIn() 대신 authenticate() 사용)
         final GoogleSignInAccount? googleUser = await _googleSignIn.authenticate();
 
         // 사용자가 취소한 경우
@@ -59,15 +67,16 @@ class _LoginScreenState extends State<LoginScreen> {
           return;
         }
 
-        // 인증 정보로부터 idToken 가져오기
+        // 4. 인증 정보(idToken) 가져오기
         final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
 
-        // idToken만 사용하여 Firebase credential 생성 (accessToken 없음)
+        // 5. Firebase 자격 증명 생성
+        // (accessToken 에러가 났던 부분: idToken만 사용하면 해결됩니다)
         final AuthCredential credential = GoogleAuthProvider.credential(
           idToken: googleAuth.idToken,
         );
 
-        // Firebase에 최종 로그인
+        // 6. Firebase에 최종 로그인
         await _auth.signInWithCredential(credential);
       }
 
@@ -76,9 +85,10 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Google 로그인에 실패했습니다: $e')),
+          SnackBar(content: Text('Google 로그인 실패: $e')),
         );
       }
+      print('에러 상세: $e'); // 디버그 콘솔에서 에러 내용을 자세히 확인하기 위함
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
