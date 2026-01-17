@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:bookit_app/screens/write_post_screen.dart';
-import 'package:bookit_app/screens/book_detail_screen.dart'; // ★ 사용자님 상세 페이지
-import 'package:bookit_app/models/book_model.dart'; // ★ 데이터 모델
+import 'package:bookit_app/screens/book_detail_screen.dart'; // ★ 사용자님의 상세 페이지 import
+import 'package:bookit_app/models/book_model.dart'; // ★ BookModel이 정의된 파일 import
 
 class PostBoardScreen extends StatefulWidget {
   const PostBoardScreen({super.key});
@@ -21,8 +21,12 @@ class _PostBoardScreenState extends State<PostBoardScreen> with SingleTickerProv
     _tabController = TabController(length: 3, vsync: this);
   }
 
-  // 🔸 피그마 스타일 헬퍼 함수
-  TextStyle _ptStyle({required double size, required FontWeight weight, Color color = const Color(0xFF222222)}) {
+  // 🔸 Pretendard 스타일 헬퍼 함수
+  TextStyle _ptStyle({
+    required double size,
+    required FontWeight weight,
+    Color color = const Color(0xFF222222),
+  }) {
     return TextStyle(
       fontFamily: 'Pretendard',
       fontSize: size,
@@ -35,6 +39,7 @@ class _PostBoardScreenState extends State<PostBoardScreen> with SingleTickerProv
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF1F1F5),
+      // 상단 앱바
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -54,7 +59,7 @@ class _PostBoardScreenState extends State<PostBoardScreen> with SingleTickerProv
       ),
       body: Column(
         children: [
-          // 상단 탭바
+          // 탭바 (최근 소식 / 좋아요 / 나의 글)
           Container(
             color: Colors.white,
             height: 60,
@@ -76,9 +81,9 @@ class _PostBoardScreenState extends State<PostBoardScreen> with SingleTickerProv
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildRecentFeed(), // 여기가 핵심 피드
-                const Center(child: Text("좋아요 탭 준비중")),
-                const Center(child: Text("나의 글 탭 준비중")),
+                _buildRecentFeed(), // 1. 최근 소식 (Firestore 연동)
+                const Center(child: Text("좋아요 탭 준비중")), // 2. 좋아요 (준비중)
+                const Center(child: Text("나의 글 탭 준비중")), // 3. 나의 글 (준비중)
               ],
             ),
           ),
@@ -87,12 +92,12 @@ class _PostBoardScreenState extends State<PostBoardScreen> with SingleTickerProv
     );
   }
 
-  // 🔹 Firestore 실시간 피드
+  // 🔹 Firestore 실시간 데이터 스트림
   Widget _buildRecentFeed() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('posts')
-          .orderBy('createdAt', descending: true)
+          .orderBy('createdAt', descending: true) // 최신순 정렬
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -109,7 +114,7 @@ class _PostBoardScreenState extends State<PostBoardScreen> with SingleTickerProv
           itemCount: docs.length,
           separatorBuilder: (context, index) => const SizedBox(height: 24),
           itemBuilder: (context, index) {
-            return _PostCard(doc: docs[index]);
+            return _PostCard(doc: docs[index]); // 개별 카드 위젯 호출
           },
         );
       },
@@ -125,7 +130,7 @@ class _PostCard extends StatelessWidget {
 
   const _PostCard({required this.doc});
 
-  // ❤️ 좋아요 토글 함수 (중복 방지 로직 포함)
+  // ❤️ 좋아요 토글 로직
   Future<void> _toggleLike(BuildContext context) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -138,13 +143,13 @@ class _PostCard extends StatelessWidget {
     final List<dynamic> likedBy = data['likedBy'] ?? [];
 
     if (likedBy.contains(uid)) {
-      // 이미 좋아요 -> 취소
+      // 이미 좋아요 한 상태 -> 취소
       await doc.reference.update({
         'likeCount': FieldValue.increment(-1),
         'likedBy': FieldValue.arrayRemove([uid]),
       });
     } else {
-      // 안 누름 -> 좋아요
+      // 좋아요 안 한 상태 -> 추가
       await doc.reference.update({
         'likeCount': FieldValue.increment(1),
         'likedBy': FieldValue.arrayUnion([uid]),
@@ -173,7 +178,9 @@ class _PostCard extends StatelessWidget {
                   child: StreamBuilder<QuerySnapshot>(
                     stream: doc.reference.collection('comments').orderBy('createdAt', descending: true).snapshots(),
                     builder: (context, snapshot) {
-                      if (!snapshot.hasData) return const Center(child: Text("첫 댓글을 남겨보세요!"));
+                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                        return const Center(child: Text("첫 댓글을 남겨보세요!"));
+                      }
                       final comments = snapshot.data!.docs;
                       return ListView.builder(
                         itemCount: comments.length,
@@ -184,7 +191,7 @@ class _PostCard extends StatelessWidget {
                             title: Text(cData['content'] ?? ''),
                             subtitle: Text(
                               (cData['createdAt'] as Timestamp?)?.toDate().toString().substring(0, 16) ?? '',
-                              style: const TextStyle(fontSize: 12),
+                              style: const TextStyle(fontSize: 12, color: Colors.grey),
                             ),
                           );
                         },
@@ -197,7 +204,7 @@ class _PostCard extends StatelessWidget {
                     Expanded(
                       child: TextField(
                         controller: commentController,
-                        decoration: const InputDecoration(hintText: "댓글 입력...", border: OutlineInputBorder()),
+                        decoration: const InputDecoration(hintText: "댓글을 입력하세요...", border: OutlineInputBorder()),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -230,7 +237,7 @@ class _PostCard extends StatelessWidget {
     final data = doc.data() as Map<String, dynamic>;
     final user = FirebaseAuth.instance.currentUser;
 
-    // 데이터 추출
+    // 데이터 안전하게 가져오기
     final List<dynamic> likedBy = data['likedBy'] ?? [];
     final bool isLiked = user != null && likedBy.contains(user.uid);
     final List<String> tags = List<String>.from(data['tags'] ?? []);
@@ -245,7 +252,7 @@ class _PostCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. 유저 프로필 헤더
+          // 1. 작성자 정보 헤더
           Row(
             children: [
               const CircleAvatar(
@@ -264,12 +271,12 @@ class _PostCard extends StatelessWidget {
           ),
           const SizedBox(height: 20),
 
-          // 2. 글 내용
-          Text(data['bookTitle'] ?? '제목 없음', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)), // 임시로 책 제목을 글 제목처럼 사용
+          // 2. 게시글 텍스트 (제목 & 내용)
+          Text("🌟 추천합니다", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           Text(data['content'] ?? '', style: const TextStyle(fontSize: 16, height: 1.4, color: Color(0xFF222222))),
 
-          // 3. 해시태그 (있을 경우만 표시)
+          // 3. 해시태그 표시
           if (tags.isNotEmpty) ...[
             const SizedBox(height: 12),
             Wrap(
@@ -277,23 +284,30 @@ class _PostCard extends StatelessWidget {
               children: tags.map((t) => Text(t, style: const TextStyle(color: Color(0xFF196DF8), fontSize: 14))).toList(),
             ),
           ],
-
           const SizedBox(height: 20),
 
-          // 4. ★ 책 카드 (클릭 시 상세 이동)
+          // 4. ★ 책 정보 카드 (클릭 시 상세 페이지로 이동)
           GestureDetector(
             onTap: () {
-              // 🚀 Firestore 데이터를 BookModel로 변환하여 전달
+              // 🚀 Firestore 데이터를 BookModel 정의에 맞게 변환
               final bookModel = BookModel(
+                // 1. 필수(required) 필드 채우기 (게시글엔 없는 정보라 임시값 사용)
+                id: doc.id,         // 게시글 ID를 임시로 사용
+                rank: '',           // 순위 정보 없음
+                category: '추천',    // 임시 카테고리
+                rating: '4.8',      // 평점 (String 타입)
+                reviewCount: '12',  // 리뷰 수 (String 타입)
+
+                // 2. 게시글 데이터 매핑
                 title: data['bookTitle'] ?? '제목 없음',
                 author: data['bookAuthor'] ?? '저자 미상',
-                imageUrl: data['bookImageUrl'] ?? 'https://i.ibb.co/b6yFp7G/book1.jpg', // 기본 이미지
-                description: data['content'] ?? '', // 게시글 내용을 상세페이지 설명으로 사용
+                imageUrl: data['bookImageUrl'] ?? 'https://i.ibb.co/b6yFp7G/book1.jpg',
+                description: data['content'] ?? '상세 설명이 없습니다.',
+
+                // 3. 추가 정보
                 tags: tags,
-                price: 15000,          // (임시값) DB에 가격이 없어서 고정값 사용
-                discountedPrice: 13500, // (임시값)
-                discountRate: 10,       // (임시값)
-                reviewCount: 12,        // (임시값)
+                price: 15000,       // 임시 가격
+                discountRate: 10,   // 할인율 (이걸 넣으면 discountedPrice는 자동 계산됨)
               );
 
               Navigator.push(
@@ -313,22 +327,26 @@ class _PostCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
+                      // 책 표지 이미지
                       ClipRRect(
                         borderRadius: BorderRadius.circular(6),
                         child: Image.network(
                           data['bookImageUrl'] ?? '',
-                          width: 73, height: 110, fit: BoxFit.cover,
+                          width: 73,
+                          height: 110,
+                          fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) => Container(width: 73, color: Colors.grey[300]),
                         ),
                       ),
                       const SizedBox(width: 20),
+                      // 책 정보 텍스트
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(data['bookTitle'] ?? '', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
-                            Text(data['bookAuthor'] ?? '', style: const TextStyle(fontSize: 14, color: Color(0xFF777777))),
+                            Text(data['bookTitle'] ?? '제목 없음', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
+                            Text(data['bookAuthor'] ?? '저자 미상', style: const TextStyle(fontSize: 14, color: Color(0xFF777777))),
                             const SizedBox(height: 4),
                             const Row(
                               children: [
@@ -342,8 +360,10 @@ class _PostCard extends StatelessWidget {
                       ),
                     ],
                   ),
+                  // '책 보러가기' 버튼 UI
                   const Positioned(
-                    right: 10, bottom: 10,
+                    right: 10,
+                    bottom: 10,
                     child: Row(
                       children: [
                         Text("책 보러가기", style: TextStyle(fontSize: 14, color: Color(0xFF111111))),
@@ -361,7 +381,7 @@ class _PostCard extends StatelessWidget {
           // 5. 좋아요 & 댓글 버튼
           Row(
             children: [
-              // 좋아요
+              // 좋아요 버튼
               GestureDetector(
                 onTap: () => _toggleLike(context),
                 child: Row(
@@ -384,7 +404,7 @@ class _PostCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 30),
-              // 댓글
+              // 댓글 버튼
               GestureDetector(
                 onTap: () => _showCommentSheet(context),
                 child: Row(
