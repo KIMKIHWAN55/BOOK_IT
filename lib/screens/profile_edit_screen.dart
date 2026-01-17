@@ -77,13 +77,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         downloadUrl = await storageRef.getDownloadURL();
       }
 
-      // 2. Firestore 정보 업데이트
-      await FirebaseFirestore.instance.collection('users').doc(_user!.uid).update({
+// 2. Firestore 정보 업데이트 (안전하게 저장)
+      await FirebaseFirestore.instance.collection('users').doc(_user!.uid).set({
         'name': _nameController.text.trim(),
         'nickname': _nicknameController.text.trim(),
         'bio': _bioController.text.trim(), // 소개글
-        'profileImage': downloadUrl,
-      });
+        // 이미지가 변경되었을 때만(null이 아닐 때만) profileImage 필드를 업데이트
+        if (downloadUrl != null) 'profileImage': downloadUrl,
+      }, SetOptions(merge: true)); // ★ 중요: 기존 데이터(이메일 등)는 살려두고 덮어쓰기
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

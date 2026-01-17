@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:bookit_app/screens/write_post_screen.dart';
+import 'package:bookit_app/screens/book_detail_screen.dart'; // ★ 사용자님 상세 페이지
+import 'package:bookit_app/models/book_model.dart'; // ★ 데이터 모델
 
 class PostBoardScreen extends StatefulWidget {
   const PostBoardScreen({super.key});
@@ -17,21 +21,13 @@ class _PostBoardScreenState extends State<PostBoardScreen> with SingleTickerProv
     _tabController = TabController(length: 3, vsync: this);
   }
 
-  // 🔸 피그마 CSS 기반 공통 스타일
-  TextStyle _ptStyle({
-    required double size,
-    required FontWeight weight,
-    Color color = const Color(0xFF222222),
-    double? height = 1.4,
-    double spacing = -0.025,
-  }) {
+  // 🔸 피그마 스타일 헬퍼 함수
+  TextStyle _ptStyle({required double size, required FontWeight weight, Color color = const Color(0xFF222222)}) {
     return TextStyle(
       fontFamily: 'Pretendard',
       fontSize: size,
       fontWeight: weight,
       color: color,
-      height: height,
-      letterSpacing: size * spacing,
     );
   }
 
@@ -39,17 +35,50 @@ class _PostBoardScreenState extends State<PostBoardScreen> with SingleTickerProv
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF1F1F5),
-      appBar: _buildAppBar(),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit_square, color: Colors.black, size: 24),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const WritePostScreen()),
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: Column(
         children: [
-          _buildTabBar(),
+          // 상단 탭바
+          Container(
+            color: Colors.white,
+            height: 60,
+            child: TabBar(
+              controller: _tabController,
+              indicatorColor: const Color(0xFFD45858),
+              labelColor: const Color(0xFFD45858),
+              unselectedLabelColor: Colors.black,
+              labelStyle: _ptStyle(size: 17, weight: FontWeight.w400),
+              tabs: const [
+                Tab(text: "최근 소식"),
+                Tab(text: "좋아요"),
+                Tab(text: "나의 글"),
+              ],
+            ),
+          ),
+          // 메인 컨텐츠 영역
           Expanded(
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildRecentFeed(), // 최근 소식 탭
-                const Center(child: Text("좋아요 콘텐츠")),
-                const Center(child: Text("나의 글 콘텐츠")),
+                _buildRecentFeed(), // 여기가 핵심 피드
+                const Center(child: Text("좋아요 탭 준비중")),
+                const Center(child: Text("나의 글 탭 준비중")),
               ],
             ),
           ),
@@ -58,98 +87,156 @@ class _PostBoardScreenState extends State<PostBoardScreen> with SingleTickerProv
     );
   }
 
-  // --- 상단 앱바 ---
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.white,
-      elevation: 0,
-      // 🔸 메인 탭이므로 leading(뒤로가기) 버튼 삭제
-      automaticallyImplyLeading: false, // 자동으로 뒤로가기 버튼 생기는 것 방지
-      actions: [
-        IconButton(icon: const Icon(Icons.search, color: Colors.black), onPressed: () {}),
-        IconButton(icon: const Icon(Icons.notifications_none, color: Colors.black), onPressed: () {}),
-        IconButton(
-          icon: const Icon(Icons.edit_square, color: Colors.black, size: 24),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const WritePostScreen()),
-            );
-          },
-        ),
-        const SizedBox(width: 8),
-      ],
-    );
-  }
-
-  // --- 상단 탭바 ---
-  Widget _buildTabBar() {
-    return Container(
-      color: Colors.white,
-      height: 60,
-      child: TabBar(
-        controller: _tabController,
-        indicatorColor: const Color(0xFFD45858),
-        indicatorWeight: 2,
-        labelColor: const Color(0xFFD45858),
-        unselectedLabelColor: Colors.black,
-        labelStyle: _ptStyle(size: 17, weight: FontWeight.w400),
-        tabs: const [
-          Tab(text: "최근 소식"),
-          Tab(text: "좋아요"),
-          Tab(text: "나의 글"),
-        ],
-      ),
-    );
-  }
-
-  // --- 최근 소식 피드 리스트 ---
+  // 🔹 Firestore 실시간 피드
   Widget _buildRecentFeed() {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
-      children: [
-        // 피드 1
-        _buildPostCard(
-          userName: "책돌이",
-          userRank: "팔로워 2K명 • 방금",
-          recTitle: "🌟 이번 주 추천도서",
-          content: "봄이 오는 길목에서 읽기 좋은 감성 소설을 추천드려요. 일상 속 작은 행복을 발견하게 해주는 따뜻한 이야기입니다.",
-          hashtags: "#감성소설 #봄 #힐링",
-          bookTitle: "그 시절 내가 좋아했던",
-          bookAuthor: "김민수",
-          bookRating: "4.7",
-          bookReviewCount: "13",
-          bookImageUrl: 'https://i.ibb.co/b6yFp7G/book1.jpg',
-          likes: "11", comments: "6", shares: "8",
-        ),
-        const SizedBox(height: 24),
-        // 피드 2
-        _buildPostCard(
-          userName: "booklover_33",
-          userRank: "팔로워 768명 • 30분전",
-          recTitle: "“시간의 틈새에서 진실을 마주하다”",
-          content: "처음엔 복잡한 시간 개념 때문에 따라가기 어려웠지만, 갈수록 철학적인 질문이 마음에 남았다. “내가 내 과거를 바꿀 수 있다면, 과연 지금의 나는 존재할 수 있을까?”",
-          hashtags: "#SF #반전 #미스테리",
-          bookTitle: "Paradox",
-          bookAuthor: "호베루투 카를로스",
-          bookRating: "4.8",
-          bookReviewCount: "762",
-          bookImageUrl: 'https://i.ibb.co/3sHHDq2/paradox-cover.jpg',
-          likes: "126", comments: "47", shares: "82",
-        ),
-      ],
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('posts')
+          .orderBy('createdAt', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Center(child: Text("등록된 글이 없습니다."));
+        }
+
+        final docs = snapshot.data!.docs;
+
+        return ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: docs.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 24),
+          itemBuilder: (context, index) {
+            return _PostCard(doc: docs[index]);
+          },
+        );
+      },
+    );
+  }
+}
+
+// ----------------------------------------------------------------------
+// 🔹 개별 게시글 카드 위젯 (분리됨)
+// ----------------------------------------------------------------------
+class _PostCard extends StatelessWidget {
+  final QueryDocumentSnapshot doc;
+
+  const _PostCard({required this.doc});
+
+  // ❤️ 좋아요 토글 함수 (중복 방지 로직 포함)
+  Future<void> _toggleLike(BuildContext context) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('로그인이 필요합니다.')));
+      return;
+    }
+
+    final uid = user.uid;
+    final data = doc.data() as Map<String, dynamic>;
+    final List<dynamic> likedBy = data['likedBy'] ?? [];
+
+    if (likedBy.contains(uid)) {
+      // 이미 좋아요 -> 취소
+      await doc.reference.update({
+        'likeCount': FieldValue.increment(-1),
+        'likedBy': FieldValue.arrayRemove([uid]),
+      });
+    } else {
+      // 안 누름 -> 좋아요
+      await doc.reference.update({
+        'likeCount': FieldValue.increment(1),
+        'likedBy': FieldValue.arrayUnion([uid]),
+      });
+    }
+  }
+
+  // 💬 댓글 바텀시트
+  void _showCommentSheet(BuildContext context) {
+    final TextEditingController commentController = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: Container(
+            height: 400,
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                const Text("댓글 남기기", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: doc.reference.collection('comments').orderBy('createdAt', descending: true).snapshots(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) return const Center(child: Text("첫 댓글을 남겨보세요!"));
+                      final comments = snapshot.data!.docs;
+                      return ListView.builder(
+                        itemCount: comments.length,
+                        itemBuilder: (context, index) {
+                          final cData = comments[index].data() as Map<String, dynamic>;
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(cData['content'] ?? ''),
+                            subtitle: Text(
+                              (cData['createdAt'] as Timestamp?)?.toDate().toString().substring(0, 16) ?? '',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: commentController,
+                        decoration: const InputDecoration(hintText: "댓글 입력...", border: OutlineInputBorder()),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD45858)),
+                      onPressed: () {
+                        if (commentController.text.isNotEmpty) {
+                          doc.reference.collection('comments').add({
+                            'content': commentController.text,
+                            'createdAt': FieldValue.serverTimestamp(),
+                          });
+                          doc.reference.update({'commentCount': FieldValue.increment(1)});
+                          commentController.clear();
+                        }
+                      },
+                      child: const Text("등록"),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
-  // --- 공통 포스트 카드 위젯 ---
-  Widget _buildPostCard({
-    required String userName, required String userRank, required String recTitle,
-    required String content, required String hashtags, required String bookTitle,
-    required String bookAuthor, required String bookRating, required String bookReviewCount,
-    required String bookImageUrl, required String likes, required String comments, required String shares,
-  }) {
+  @override
+  Widget build(BuildContext context) {
+    final data = doc.data() as Map<String, dynamic>;
+    final user = FirebaseAuth.instance.currentUser;
+
+    // 데이터 추출
+    final List<dynamic> likedBy = data['likedBy'] ?? [];
+    final bool isLiked = user != null && likedBy.contains(user.uid);
+    final List<String> tags = List<String>.from(data['tags'] ?? []);
+
     return Container(
-      width: 358,
+      width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -158,98 +245,160 @@ class _PostBoardScreenState extends State<PostBoardScreen> with SingleTickerProv
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 1. 유저 프로필 헤더
           Row(
             children: [
-              Container(
-                width: 50, height: 50,
-                decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFDBDBDB)),
-                child: const Icon(Icons.person, color: Colors.white),
+              const CircleAvatar(
+                backgroundColor: Color(0xFFDBDBDB),
+                child: Icon(Icons.person, color: Colors.white),
               ),
               const SizedBox(width: 10),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(userName, style: _ptStyle(size: 14, weight: FontWeight.w500)),
-                  Text(userRank, style: _ptStyle(size: 14, weight: FontWeight.w400, color: const Color(0xFF767676))),
+                  Text(data['nickname'] ?? '익명', style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
+                  const Text("방금 전", style: TextStyle(fontSize: 12, color: Color(0xFF767676))),
                 ],
               ),
             ],
           ),
           const SizedBox(height: 20),
-          Text(recTitle, style: _ptStyle(size: 16, weight: FontWeight.w400)),
+
+          // 2. 글 내용
+          Text(data['bookTitle'] ?? '제목 없음', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)), // 임시로 책 제목을 글 제목처럼 사용
           const SizedBox(height: 12),
-          Text(content, style: _ptStyle(size: 16, weight: FontWeight.w400, height: 1.4)),
-          const SizedBox(height: 20),
-          Text(hashtags, style: _ptStyle(size: 14, weight: FontWeight.w400, color: const Color(0xFF196DF8))),
-          const SizedBox(height: 20),
-          Container(
-            height: 110,
-            decoration: BoxDecoration(
-              border: Border.all(color: const Color(0xFFF1F1F5)),
-              borderRadius: BorderRadius.circular(12),
+          Text(data['content'] ?? '', style: const TextStyle(fontSize: 16, height: 1.4, color: Color(0xFF222222))),
+
+          // 3. 해시태그 (있을 경우만 표시)
+          if (tags.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              children: tags.map((t) => Text(t, style: const TextStyle(color: Color(0xFF196DF8), fontSize: 14))).toList(),
             ),
-            child: Stack(
-              children: [
-                Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: Image.network(bookImageUrl, width: 73, height: 110, fit: BoxFit.cover),
-                    ),
-                    const SizedBox(width: 40),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(bookTitle, style: _ptStyle(size: 16, weight: FontWeight.w500)),
-                        Text(bookAuthor, style: _ptStyle(size: 14, weight: FontWeight.w400, color: const Color(0xFF777777))),
-                        const SizedBox(height: 4),
-                        Row(
+          ],
+
+          const SizedBox(height: 20),
+
+          // 4. ★ 책 카드 (클릭 시 상세 이동)
+          GestureDetector(
+            onTap: () {
+              // 🚀 Firestore 데이터를 BookModel로 변환하여 전달
+              final bookModel = BookModel(
+                title: data['bookTitle'] ?? '제목 없음',
+                author: data['bookAuthor'] ?? '저자 미상',
+                imageUrl: data['bookImageUrl'] ?? 'https://i.ibb.co/b6yFp7G/book1.jpg', // 기본 이미지
+                description: data['content'] ?? '', // 게시글 내용을 상세페이지 설명으로 사용
+                tags: tags,
+                price: 15000,          // (임시값) DB에 가격이 없어서 고정값 사용
+                discountedPrice: 13500, // (임시값)
+                discountRate: 10,       // (임시값)
+                reviewCount: 12,        // (임시값)
+              );
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => BookDetailScreen(book: bookModel),
+                ),
+              );
+            },
+            child: Container(
+              height: 110,
+              decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFFF1F1F5)),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Stack(
+                children: [
+                  Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Image.network(
+                          data['bookImageUrl'] ?? '',
+                          width: 73, height: 110, fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(width: 73, color: Colors.grey[300]),
+                        ),
+                      ),
+                      const SizedBox(width: 20),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.star, color: Color(0xFFFBBC05), size: 14),
-                            const SizedBox(width: 2),
-                            Text(bookRating, style: _ptStyle(size: 12, weight: FontWeight.w400, color: const Color(0xFFFBBC05))),
-                            Text(" ($bookReviewCount)", style: _ptStyle(size: 12, weight: FontWeight.w400, color: const Color(0xFF777777))),
+                            Text(data['bookTitle'] ?? '', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
+                            Text(data['bookAuthor'] ?? '', style: const TextStyle(fontSize: 14, color: Color(0xFF777777))),
+                            const SizedBox(height: 4),
+                            const Row(
+                              children: [
+                                Icon(Icons.star, color: Color(0xFFFBBC05), size: 14),
+                                SizedBox(width: 2),
+                                Text("4.8 (12)", style: TextStyle(fontSize: 12, color: Color(0xFF777777))),
+                              ],
+                            ),
                           ],
                         ),
+                      ),
+                    ],
+                  ),
+                  const Positioned(
+                    right: 10, bottom: 10,
+                    child: Row(
+                      children: [
+                        Text("책 보러가기", style: TextStyle(fontSize: 14, color: Color(0xFF111111))),
+                        Icon(Icons.chevron_right, size: 18),
                       ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // 5. 좋아요 & 댓글 버튼
+          Row(
+            children: [
+              // 좋아요
+              GestureDetector(
+                onTap: () => _toggleLike(context),
+                child: Row(
+                  children: [
+                    Icon(
+                      isLiked ? Icons.favorite : Icons.favorite_border,
+                      size: 24,
+                      color: isLiked ? const Color(0xFFD45858) : const Color(0xFF222222),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      "${data['likeCount'] ?? 0}",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isLiked ? const Color(0xFFD45858) : const Color(0xFF222222),
+                        fontWeight: isLiked ? FontWeight.bold : FontWeight.normal,
+                      ),
                     ),
                   ],
                 ),
-                Positioned(
-                  right: 10, bottom: 10,
-                  child: Row(
-                    children: [
-                      Text("책 보러가기", style: _ptStyle(size: 16, weight: FontWeight.w400, color: const Color(0xFF111111))),
-                      const Icon(Icons.chevron_right, size: 18),
-                    ],
-                  ),
+              ),
+              const SizedBox(width: 30),
+              // 댓글
+              GestureDetector(
+                onTap: () => _showCommentSheet(context),
+                child: Row(
+                  children: [
+                    const Icon(Icons.chat_bubble_outline, size: 24, color: Color(0xFF222222)),
+                    const SizedBox(width: 4),
+                    Text("${data['commentCount'] ?? 0}", style: const TextStyle(fontSize: 12)),
+                  ],
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 32),
-          Row(
-            children: [
-              _buildInteractionItem(Icons.favorite_border, likes),
-              const SizedBox(width: 30),
-              _buildInteractionItem(Icons.chat_bubble_outline, comments),
-              const SizedBox(width: 30),
-              _buildInteractionItem(Icons.send_outlined, shares),
+              ),
             ],
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildInteractionItem(IconData icon, String count) {
-    return Row(
-      children: [
-        Icon(icon, size: 24, color: const Color(0xFF222222)),
-        const SizedBox(width: 4),
-        Text(count, style: _ptStyle(size: 12, weight: FontWeight.w400)),
-      ],
     );
   }
 }
