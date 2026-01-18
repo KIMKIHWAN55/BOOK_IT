@@ -31,7 +31,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
     final doc = await FirebaseFirestore.instance
         .collection('users')
         .doc(user!.uid)
-        .collection('likes')
+        .collection('liked_books')
         .doc(widget.book.id)
         .get();
     if (mounted) {
@@ -51,7 +51,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
     final ref = FirebaseFirestore.instance
         .collection('users')
         .doc(user!.uid)
-        .collection('likes')
+        .collection('liked_books')
         .doc(widget.book.id);
 
     if (isLiked) {

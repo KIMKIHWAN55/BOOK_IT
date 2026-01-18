@@ -7,6 +7,7 @@ import 'package:bookit_app/screens/admin_add_book_screen.dart';
 import 'package:bookit_app/screens/profile_edit_screen.dart';
 import 'package:bookit_app/models/user_model.dart';
 import 'package:bookit_app/screens/settings_screen.dart';
+import 'liked_books_screen.dart'; // ★ 새로 만든 전체보기 화면 import
 
 class MyPageScreen extends StatefulWidget {
   const MyPageScreen({super.key});
@@ -75,15 +76,13 @@ class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderSt
   // ============================================================
   Widget _buildAdminLayout() {
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F1F5), // 배경색
+      backgroundColor: const Color(0xFFF1F1F5),
       appBar: _buildAppBar(title: "관리자 페이지"),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Column(
           children: [
-            const SizedBox(height: 20), // Top spacing (approx 100px from top including appbar)
-
-            // 1. 프로필 카드
+            const SizedBox(height: 20),
             _buildInfoCard(
               child: Row(
                 children: [
@@ -97,8 +96,6 @@ class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderSt
               ),
             ),
             const SizedBox(height: 10),
-
-            // 2. 도서 등록 카드
             GestureDetector(
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminAddBookScreen())),
               child: _buildInfoCard(
@@ -112,8 +109,6 @@ class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderSt
               ),
             ),
             const SizedBox(height: 10),
-
-            // 3. 도서 수정 카드
             GestureDetector(
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminBookListScreen())),
               child: _buildInfoCard(
@@ -126,7 +121,6 @@ class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderSt
                 ),
               ),
             ),
-
             const SizedBox(height: 30),
             _buildLogoutButton(),
           ],
@@ -140,7 +134,7 @@ class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderSt
   // ============================================================
   Widget _buildUserLayout() {
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F1F5), // 배경색 #F1F1F5
+      backgroundColor: const Color(0xFFF1F1F5),
       appBar: _buildAppBar(title: "내 정보"),
       body: NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) {
@@ -151,7 +145,6 @@ class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderSt
                 child: Column(
                   children: [
                     const SizedBox(height: 20),
-                    // 1. 프로필 카드 (편집 기능 포함)
                     GestureDetector(
                       onTap: () {
                         Navigator.push(
@@ -175,8 +168,6 @@ class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderSt
                       ),
                     ),
                     const SizedBox(height: 10),
-
-                    // 2. 소개 카드 (Intro)
                     _buildInfoCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -187,7 +178,6 @@ class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderSt
                             style: const TextStyle(fontFamily: 'Pretendard', fontSize: 16, color: Color(0xFF222222)),
                           ),
                           const SizedBox(height: 4),
-                          // TODO: 실제 데이터바인딩 필요. 임시 텍스트
                           const Text(
                             "# SF # 추리 #로맨스 장르 좋아해",
                             style: TextStyle(fontFamily: 'Pretendard', fontSize: 16, color: Color(0xFF196DF8)),
@@ -200,15 +190,13 @@ class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderSt
                 ),
               ),
             ),
-
-            // 3. 탭바 (Sticky Header 효과를 위해 SliverPersistentHeader 사용 권장이나, 간단하게 구현)
             SliverPersistentHeader(
               delegate: _SliverAppBarDelegate(
                 TabBar(
                   controller: _tabController,
                   labelColor: const Color(0xFF000000),
                   unselectedLabelColor: const Color(0xFF767676),
-                  indicatorColor: const Color(0xFFED7777), // 핑크빛 포인트
+                  indicatorColor: const Color(0xFFED7777),
                   indicatorWeight: 2,
                   labelStyle: const TextStyle(fontFamily: 'Pretendard', fontSize: 16, fontWeight: FontWeight.w600),
                   tabs: const [
@@ -224,15 +212,13 @@ class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderSt
         body: TabBarView(
           controller: _tabController,
           children: [
-            _buildLikedBooksList(), // 책 목록
+            _buildLikedBooksList(), // 책 목록 (수정됨)
             _buildLikedFeedsList(), // 피드 목록
           ],
         ),
       ),
     );
   }
-
-  // --- [위젯 구성 요소] ---
 
   PreferredSizeWidget _buildAppBar({required String title}) {
     return AppBar(
@@ -256,7 +242,6 @@ class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderSt
     );
   }
 
-  // 카드 공통 디자인 (CSS Frame 300, 308 등)
   Widget _buildInfoCard({required Widget child}) {
     return Container(
       width: double.infinity,
@@ -294,28 +279,65 @@ class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderSt
     );
   }
 
-  // 좋아요한 책 리스트 (CSS Frame 306, 301 스타일)
+  // ★ [수정] 좋아요한 책 리스트: 4개까지만 표시 + 더보기 버튼
   Widget _buildLikedBooksList() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('users').doc(_user!.uid).collection('liked_books').snapshots(),
+      // 기존 코드의 컬렉션명(liked_books) 유지
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(_user!.uid)
+          .collection('liked_books')
+          .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        if (snapshot.data!.docs.isEmpty) {
+        final docs = snapshot.data!.docs;
+
+        if (docs.isEmpty) {
           return const Center(child: Text("좋아요한 책이 없습니다.", style: TextStyle(color: Colors.grey)));
         }
 
+        // 4개 초과 여부 확인
+        final bool hasMore = docs.length > 4;
+        final int displayCount = hasMore ? 4 : docs.length;
+
         return ListView.builder(
           padding: const EdgeInsets.only(top: 10, bottom: 20),
-          itemCount: snapshot.data!.docs.length,
+          // 아이템 개수: 4개 이하 + (더보기 버튼이 필요하면 1개 추가)
+          itemCount: hasMore ? displayCount + 1 : displayCount,
           itemBuilder: (context, index) {
-            var book = snapshot.data!.docs[index];
+            // 더보기 버튼을 그릴 순서인지 확인 (마지막 항목)
+            if (hasMore && index == displayCount) {
+              return Container(
+                margin: const EdgeInsets.only(top: 10),
+                alignment: Alignment.center,
+                child: TextButton(
+                  onPressed: () {
+                    // 전체보기 화면으로 이동
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const LikedBooksScreen()),
+                    );
+                  },
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Text("더보기", style: TextStyle(color: Color(0xFF767676), fontSize: 14)),
+                      SizedBox(width: 4),
+                      Icon(Icons.arrow_forward_ios, size: 12, color: Color(0xFF767676)),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            // 일반 책 아이템 그리기
+            var book = docs[index];
             return Container(
               height: 136,
               margin: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
                 color: Colors.white,
                 border: Border(bottom: BorderSide(color: const Color(0xFFD1D1D1).withOpacity(0.5), width: 0.5)),
-                // 첫 번째 아이템 상단 라운드, 마지막 아이템 하단 라운드 처리 로직은 생략하거나 Container 전체 감싸기로 가능
               ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
@@ -394,7 +416,6 @@ class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderSt
   }
 }
 
-// 탭바를 고정시키기 위한 Delegate 클래스
 class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   final TabBar _tabBar;
   _SliverAppBarDelegate(this._tabBar);
@@ -407,7 +428,7 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Container(
-      color: const Color(0xFFF1F1F5), // 탭바 배경색
+      color: const Color(0xFFF1F1F5),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16),
         decoration: const BoxDecoration(
