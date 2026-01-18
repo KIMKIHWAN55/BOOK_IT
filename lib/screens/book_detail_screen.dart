@@ -1,25 +1,117 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // ★ DB 연동을 위해 추가
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Auth 추가
 import '../models/book_model.dart';
+import 'payment_screen.dart'; // 결제 스크린 import (새로 생성 필요)
 
-class BookDetailScreen extends StatelessWidget {
+class BookDetailScreen extends StatefulWidget {
   final BookModel book;
 
   const BookDetailScreen({super.key, required this.book});
 
   @override
+  State<BookDetailScreen> createState() => _BookDetailScreenState();
+}
+
+class _BookDetailScreenState extends State<BookDetailScreen> {
+  bool isLiked = false; // 좋아요 상태
+  final user = FirebaseAuth.instance.currentUser; // 현재 로그인한 유저
+
+  @override
+  void initState() {
+    super.initState();
+    _checkIfLiked(); // 초기 좋아요 상태 확인
+  }
+
+  // 좋아요 상태 확인
+  void _checkIfLiked() async {
+    if (user == null) return;
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user!.uid)
+        .collection('likes')
+        .doc(widget.book.id)
+        .get();
+    if (mounted) {
+      setState(() {
+        isLiked = doc.exists;
+      });
+    }
+  }
+
+  // 좋아요 토글 기능
+  void _toggleLike() async {
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("로그인이 필요합니다.")));
+      return;
+    }
+
+    final ref = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user!.uid)
+        .collection('likes')
+        .doc(widget.book.id);
+
+    if (isLiked) {
+      await ref.delete();
+      if(mounted) setState(() => isLiked = false);
+    } else {
+      await ref.set({
+        'title': widget.book.title,
+        'author': widget.book.author,
+        'imageUrl': widget.book.imageUrl,
+        'likedAt': FieldValue.serverTimestamp(),
+      });
+      if(mounted) setState(() => isLiked = true);
+    }
+  }
+
+  // 장바구니 담기 기능
+  void _addToCart() async {
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("로그인이 필요합니다.")));
+      return;
+    }
+
+    // 장바구니에 저장할 데이터 구성
+    // BookModel의 toMap을 사용하거나 직접 구성
+    // 여기서는 장바구니 화면에서 필요한 필드 위주로 저장
+    final cartData = {
+      'id': widget.book.id,
+      'title': widget.book.title,
+      'author': widget.book.author,
+      'imageUrl': widget.book.imageUrl,
+      'originalPrice': widget.book.price,
+      'discountedPrice': widget.book.discountedPrice,
+      'addedAt': FieldValue.serverTimestamp(),
+    };
+
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user!.uid)
+        .collection('cart')
+        .doc(widget.book.id)
+        .set(cartData);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("장바구니에 담겼습니다.")));
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // 화폐 포맷 (예: 13,000)
+    // 화폐 포맷
     final currencyFormat = NumberFormat("#,###", "ko_KR");
+    final book = widget.book;
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
         children: [
           // ---------------------------------------------------------
-          // 1. 배경 레이어 (유지)
+          // 1. 배경 레이어 (기존 코드 유지)
           // ---------------------------------------------------------
           Positioned(
             top: 0, left: 0, right: 0, height: 380,
@@ -56,7 +148,7 @@ class BookDetailScreen extends StatelessWidget {
           ),
 
           // ---------------------------------------------------------
-          // 2. 메인 컨텐츠
+          // 2. 메인 컨텐츠 (기존 코드 유지)
           // ---------------------------------------------------------
           Positioned.fill(
             child: SingleChildScrollView(
@@ -64,7 +156,6 @@ class BookDetailScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 50),
-
                   // 상단 네비게이션
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -93,7 +184,7 @@ class BookDetailScreen extends StatelessWidget {
 
                   const SizedBox(height: 10),
 
-                  // 책 표지 이미지 (Top 90px)
+                  // 책 표지
                   Center(
                     child: Container(
                       width: 165, height: 250,
@@ -105,7 +196,6 @@ class BookDetailScreen extends StatelessWidget {
                         image: DecorationImage(
                           image: NetworkImage(book.imageUrl),
                           fit: BoxFit.cover,
-                          // 이미지 없을 때 에러 방지
                           onError: (exception, stackTrace) {},
                         ),
                       ),
@@ -114,7 +204,7 @@ class BookDetailScreen extends StatelessWidget {
 
                   const SizedBox(height: 60),
 
-                  // 책 기본 정보 영역
+                  // 책 기본 정보
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Column(
@@ -130,8 +220,6 @@ class BookDetailScreen extends StatelessWidget {
                           style: const TextStyle(fontFamily: 'Pretendard', fontSize: 14, color: Color(0xFF777777), letterSpacing: -0.05),
                         ),
                         const SizedBox(height: 12),
-
-                        // 별점 & 리뷰수
                         Row(
                           children: [
                             const Icon(Icons.star, color: Color(0xFFFBBC05), size: 16),
@@ -141,10 +229,7 @@ class BookDetailScreen extends StatelessWidget {
                             Text("(${book.reviewCount})", style: const TextStyle(color: Color(0xFF767676), fontSize: 14)),
                           ],
                         ),
-
                         const SizedBox(height: 12),
-
-                        // 가격 정보
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
@@ -172,7 +257,7 @@ class BookDetailScreen extends StatelessWidget {
 
                   const SizedBox(height: 40),
 
-                  // 줄거리 & 태그 영역
+                  // 줄거리 & 태그 (기존 유지)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Column(
@@ -180,15 +265,11 @@ class BookDetailScreen extends StatelessWidget {
                       children: [
                         const Text("줄거리", style: TextStyle(fontFamily: 'Pretendard', fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF222222))),
                         const SizedBox(height: 10),
-
-                        // 줄거리 본문
                         Text(
                           book.description.isNotEmpty ? book.description : "줄거리 정보가 없습니다.",
                           style: const TextStyle(fontFamily: 'Pretendard', fontSize: 16, height: 1.4, color: Color(0xFF767676)),
                         ),
                         const SizedBox(height: 20),
-
-                        // 태그
                         if (book.tags.isNotEmpty)
                           Wrap(
                             spacing: 10,
@@ -203,9 +284,7 @@ class BookDetailScreen extends StatelessWidget {
 
                   const SizedBox(height: 40),
 
-                  // -------------------------------------------------
-                  // ★ 리뷰 영역 (DB 연동 + '리뷰 없음' 처리)
-                  // -------------------------------------------------
+                  // 리뷰 영역 (기존 유지)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Row(
@@ -217,19 +296,16 @@ class BookDetailScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 15),
-
-                  // 실제 리뷰 데이터 스트림 (지금은 비어있음 -> "등록된 리뷰가 없습니다" 표시)
                   SizedBox(
                     height: 150,
                     child: StreamBuilder<QuerySnapshot>(
                       stream: FirebaseFirestore.instance
                           .collection('books')
-                          .doc(book.id) // 현재 책의 ID
-                          .collection('reviews') // 'reviews' 서브 컬렉션 조회
+                          .doc(book.id)
+                          .collection('reviews')
                           .orderBy('createdAt', descending: true)
                           .snapshots(),
                       builder: (context, snapshot) {
-                        // 1. 데이터가 없거나 비어있을 때 (가장 중요한 부분!)
                         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                           return Container(
                             width: double.infinity,
@@ -247,8 +323,6 @@ class BookDetailScreen extends StatelessWidget {
                             ),
                           );
                         }
-
-                        // 2. 리뷰가 있을 때 (나중에 리뷰 기능 만들면 자동으로 뜸)
                         final reviews = snapshot.data!.docs;
                         return ListView.separated(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -266,7 +340,6 @@ class BookDetailScreen extends StatelessWidget {
                       },
                     ),
                   ),
-
                   const SizedBox(height: 120),
                 ],
               ),
@@ -274,7 +347,7 @@ class BookDetailScreen extends StatelessWidget {
           ),
 
           // ---------------------------------------------------------
-          // 3. 하단 구매 바 (유지)
+          // 3. 하단 구매 바 (기능 구현됨)
           // ---------------------------------------------------------
           Positioned(
             bottom: 0, left: 0, right: 0,
@@ -287,19 +360,27 @@ class BookDetailScreen extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(Icons.favorite_border, color: Color(0xFFED7777), size: 24),
-                      SizedBox(height: 4),
-                      Text("좋아요", style: TextStyle(fontSize: 10, color: Color(0xFF222222))),
-                    ],
+                  // 좋아요 버튼
+                  InkWell(
+                    onTap: _toggleLike,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          isLiked ? Icons.favorite : Icons.favorite_border,
+                          color: const Color(0xFFED7777),
+                          size: 24,
+                        ),
+                        const SizedBox(height: 4),
+                        const Text("좋아요", style: TextStyle(fontSize: 10, color: Color(0xFF222222))),
+                      ],
+                    ),
                   ),
                   const SizedBox(width: 20),
-                  GestureDetector(
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("장바구니에 담겼습니다.")));
-                    },
+
+                  // 장바구니 버튼
+                  InkWell(
+                    onTap: _addToCart,
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: const [
@@ -310,11 +391,31 @@ class BookDetailScreen extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  Container(
-                    width: 219, height: 52,
-                    decoration: BoxDecoration(color: const Color(0xFFD45858), borderRadius: BorderRadius.circular(8)),
-                    child: const Center(
-                      child: Text("구매하기", style: TextStyle(fontFamily: 'Pretendard', fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+
+                  // 구매하기 버튼 -> 결제 페이지로 이동
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PaymentScreen(
+                            items: [{
+                              'title': book.title,
+                              'author': book.author,
+                              'imageUrl': book.imageUrl,
+                              'price': book.discountedPrice
+                            }],
+                            totalPrice: book.discountedPrice,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: 219, height: 52,
+                      decoration: BoxDecoration(color: const Color(0xFFD45858), borderRadius: BorderRadius.circular(8)),
+                      child: const Center(
+                        child: Text("구매하기", style: TextStyle(fontFamily: 'Pretendard', fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+                      ),
                     ),
                   ),
                 ],
@@ -326,7 +427,7 @@ class BookDetailScreen extends StatelessWidget {
     );
   }
 
-  // 리뷰 카드 위젯
+  // 리뷰 카드 위젯 (기존 유지)
   Widget _buildReviewCard(String user, String content) {
     return Container(
       width: 291, height: 147,

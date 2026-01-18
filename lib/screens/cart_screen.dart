@@ -1,25 +1,37 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // 숫자 포맷팅을 위해 intl 패키지 사용
+import 'package:intl/intl.dart';
+import 'payment_screen.dart'; // 결제 화면 import
 
-// 장바구니 아이템의 데이터 구조를 정의하는 클래스
-class CartItem {
+// 로컬에서 UI 상태 관리를 위해 확장한 클래스
+class CartItemModel {
   final String id;
   final String title;
   final String author;
   final String imageUrl;
   final int originalPrice;
   final int discountedPrice;
-  bool isSelected;
 
-  CartItem({
+  CartItemModel({
     required this.id,
     required this.title,
     required this.author,
     required this.imageUrl,
     required this.originalPrice,
     required this.discountedPrice,
-    this.isSelected = true,
   });
+
+  factory CartItemModel.fromMap(String id, Map<String, dynamic> map) {
+    return CartItemModel(
+      id: id,
+      title: map['title'] ?? '',
+      author: map['author'] ?? '',
+      imageUrl: map['imageUrl'] ?? '',
+      originalPrice: map['originalPrice'] ?? 0,
+      discountedPrice: map['discountedPrice'] ?? 0,
+    );
+  }
 }
 
 class CartScreen extends StatefulWidget {
@@ -30,73 +42,65 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
-  // 임시 장바구니 데이터 (나중에는 백엔드에서 받아와야 합니다)
-  final List<CartItem> _cartItems = [
-    CartItem(
-      id: '1',
-      title: 'Paradox',
-      author: '호베르투 카를로스',
-      imageUrl: 'https://i.ibb.co/3sHHDq2/paradox-cover.jpg',
-      originalPrice: 13000,
-      discountedPrice: 10400,
-    ),
-    CartItem(
-      id: '2',
-      title: '1퍼센트 부자들의 법칙',
-      author: '김민규',
-      imageUrl: 'https://i.ibb.co/4222L1m/book4.jpg',
-      originalPrice: 11500,
-      discountedPrice: 11500,
-    ),
-    CartItem(
-      id: '3',
-      title: '그 시절 내가 좋아했던',
-      author: '김민수',
-      imageUrl: 'https://i.ibb.co/b6yFp7G/book1.jpg',
-      originalPrice: 12000,
-      discountedPrice: 10000,
-    ),
-  ];
+  final user = FirebaseAuth.instance.currentUser;
 
+  // 선택된 항목의 ID를 저장하는 Set
+  final Set<String> _selectedItemIds = {};
+
+  // 전체 선택 여부
   bool _isAllSelected = true;
+
+  // 합계 계산
   int _totalProductPrice = 0;
   int _totalDiscountPrice = 0;
   int _totalPaymentPrice = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    _calculateTotals(); // 화면이 시작될 때 총액을 계산
+  List<CartItemModel> _loadedItems = [];
+
+  // 숫자를 원화 형식으로 변환
+  String _formatPrice(int price) {
+    return NumberFormat('###,###,###,###원').format(price);
   }
 
-  // 금액을 계산하는 함수
+  // 계산 로직 업데이트
   void _calculateTotals() {
-    _totalProductPrice = 0;
-    _totalDiscountPrice = 0;
-    _totalPaymentPrice = 0;
+    int product = 0;
+    int payment = 0;
 
-    for (var item in _cartItems) {
-      if (item.isSelected) {
-        _totalProductPrice += item.originalPrice;
-        _totalDiscountPrice += item.originalPrice - item.discountedPrice;
-        _totalPaymentPrice += item.discountedPrice;
+    for (var item in _loadedItems) {
+      if (_selectedItemIds.contains(item.id)) {
+        product += item.originalPrice;
+        payment += item.discountedPrice;
       }
     }
 
-    // 모든 아이템이 선택되었는지 확인하여 '전체 선택' 체크박스 상태 업데이트
-    _isAllSelected = _cartItems.every((item) => item.isSelected);
-
-    setState(() {}); // 화면 갱신
+    setState(() {
+      _totalProductPrice = product;
+      _totalPaymentPrice = payment;
+      _totalDiscountPrice = product - payment;
+    });
   }
 
-  // 숫자를 원화(₩) 형식으로 포맷팅하는 함수
-  String _formatPrice(int price) {
-    var format = NumberFormat('###,###,###,###원');
-    return format.format(price);
+  // DB에서 항목 삭제
+  void _deleteItem(String docId) {
+    if (user != null) {
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(user!.uid)
+          .collection('cart')
+          .doc(docId)
+          .delete();
+
+      _selectedItemIds.remove(docId); // 선택 목록에서도 제거
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (user == null) {
+      return const Scaffold(body: Center(child: Text("로그인이 필요합니다.")));
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -110,37 +114,110 @@ class _CartScreenState extends State<CartScreen> {
         foregroundColor: Colors.black,
         elevation: 0,
       ),
-      body: Column(
-        children: [
-          // 책 목록이 있는 상단 영역
-          Expanded(
-            child: ListView(
-              children: [
-                _buildSelectAll(), // 전체 선택 체크박스
-                ..._cartItems.map((item) => _buildCartItem(item)).toList(), // 장바구니 아이템 목록
-                Container(height: 8, color: const Color(0xFFF5F5F5)), // 회색 구분선
-              ],
-            ),
-          ),
-          // 구매 금액 정보가 있는 하단 영역
-          _buildPriceSummary(),
-        ],
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(user!.uid)
+            .collection('cart')
+            .orderBy('addedAt', descending: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+
+          final docs = snapshot.data!.docs;
+
+          // 데이터가 로드되면 모델 리스트로 변환
+          _loadedItems = docs.map((doc) {
+            return CartItemModel.fromMap(doc.id, doc.data() as Map<String, dynamic>);
+          }).toList();
+
+          // 초기 진입 시(혹은 아이템 추가 시) 선택 로직:
+          // 기존에 선택된 정보가 없으면 모두 선택 상태로 초기화할 수도 있음
+          // 하지만 여기서는 _selectedItemIds에 없는 새로운 아이템이 들어오면 기본적으로 선택되도록 처리
+          for(var item in _loadedItems) {
+            // 만약 _isAllSelected가 true 상태라면 새로 들어온 것도 자동 선택
+            if (_isAllSelected && !_selectedItemIds.contains(item.id)) {
+              _selectedItemIds.add(item.id);
+            }
+          }
+
+          // 화면 렌더링 시점마다 계산 업데이트 (Future.microtask로 에러 방지)
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            // 무한 루프 방지를 위해 값이 다를 때만 setState 호출해야 하지만,
+            // 간단하게는 calculate를 여기서 직접 호출하지 않고,
+            // build 내에서 변수만 계산해서 보여주는 방식이 더 안전함.
+            // 여기서는 편의상 보여주는 값 변수만 갱신하겠습니다.
+            int product = 0;
+            int payment = 0;
+            for (var item in _loadedItems) {
+              if (_selectedItemIds.contains(item.id)) {
+                product += item.originalPrice;
+                payment += item.discountedPrice;
+              }
+            }
+            if(_totalPaymentPrice != payment) {
+              setState(() {
+                _totalProductPrice = product;
+                _totalPaymentPrice = payment;
+                _totalDiscountPrice = product - payment;
+              });
+            }
+          });
+
+          if (_loadedItems.isEmpty) {
+            return const Center(child: Text("장바구니가 비어있습니다."));
+          }
+
+          return Column(
+            children: [
+              Expanded(
+                child: ListView(
+                  children: [
+                    _buildSelectAll(),
+                    ..._loadedItems.map((item) => _buildCartItem(item)).toList(),
+                    Container(height: 8, color: const Color(0xFFF5F5F5)),
+                  ],
+                ),
+              ),
+              _buildPriceSummary(),
+            ],
+          );
+        },
       ),
-      // 구매하기 버튼
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(16.0),
         child: ElevatedButton(
-          onPressed: () {},
+          onPressed: _totalPaymentPrice == 0 ? null : () {
+            // 선택된 아이템만 필터링하여 결제 페이지로 전달
+            final selectedItems = _loadedItems
+                .where((item) => _selectedItemIds.contains(item.id))
+                .map((item) => {
+              'title': item.title,
+              'author': item.author,
+              'imageUrl': item.imageUrl,
+              'price': item.discountedPrice
+            })
+                .toList();
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PaymentScreen(
+                  items: selectedItems,
+                  totalPrice: _totalPaymentPrice,
+                ),
+              ),
+            );
+          },
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.redAccent,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            disabledBackgroundColor: Colors.grey[300],
           ),
           child: Text(
-            '${_formatPrice(_totalPaymentPrice)} 구매하기 (${_cartItems.where((i) => i.isSelected).length}개)',
+            '${_formatPrice(_totalPaymentPrice)} 구매하기 (${_selectedItemIds.length}개)',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ),
@@ -148,7 +225,6 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  // 전체 선택 UI
   Widget _buildSelectAll() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -159,10 +235,11 @@ class _CartScreenState extends State<CartScreen> {
             onChanged: (value) {
               setState(() {
                 _isAllSelected = value ?? false;
-                for (var item in _cartItems) {
-                  item.isSelected = _isAllSelected;
+                if (_isAllSelected) {
+                  _selectedItemIds.addAll(_loadedItems.map((e) => e.id));
+                } else {
+                  _selectedItemIds.clear();
                 }
-                _calculateTotals();
               });
             },
             activeColor: Colors.redAccent,
@@ -173,18 +250,22 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  // 개별 장바구니 아이템 UI
-  Widget _buildCartItem(CartItem item) {
+  Widget _buildCartItem(CartItemModel item) {
+    final isSelected = _selectedItemIds.contains(item.id);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
       child: Row(
         children: [
           Checkbox(
-            value: item.isSelected,
+            value: isSelected,
             onChanged: (value) {
               setState(() {
-                item.isSelected = value ?? false;
-                _calculateTotals();
+                if (value == true) {
+                  _selectedItemIds.add(item.id);
+                } else {
+                  _selectedItemIds.remove(item.id);
+                  _isAllSelected = false; // 하나라도 해제하면 전체 선택 해제
+                }
               });
             },
             activeColor: Colors.redAccent,
@@ -209,19 +290,13 @@ class _CartScreenState extends State<CartScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.close),
-            onPressed: () {
-              setState(() {
-                _cartItems.remove(item);
-                _calculateTotals();
-              });
-            },
+            onPressed: () => _deleteItem(item.id),
           ),
         ],
       ),
     );
   }
 
-  // 구매 금액 요약 UI
   Widget _buildPriceSummary() {
     return Container(
       padding: const EdgeInsets.all(16.0),
