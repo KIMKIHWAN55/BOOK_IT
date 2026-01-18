@@ -83,9 +83,12 @@ class _WritePostScreenState extends State<WritePostScreen> {
         'content': _contentController.text,
 
         // ★ 선택된 책 정보 저장 (BookModel 데이터 활용)
+        'bookId': _selectedBook!.id,
         'bookTitle': _selectedBook!.title,
         'bookAuthor': _selectedBook!.author,
         'bookImageUrl': _selectedBook!.imageUrl,
+        'bookRating': _selectedBook!.rating,
+        'bookReviewCount': _selectedBook!.reviewCount,
 
         'tags': finalTags, // 합쳐진 태그 리스트 저장
         'likeCount': 0,

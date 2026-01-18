@@ -288,34 +288,42 @@ class _PostCard extends StatelessWidget {
 
           // 4. ★ 책 정보 카드 (클릭 시 상세 페이지로 이동)
           GestureDetector(
-            onTap: () {
-              // 🚀 Firestore 데이터를 BookModel 정의에 맞게 변환
-              final bookModel = BookModel(
-                // 1. 필수(required) 필드 채우기 (게시글엔 없는 정보라 임시값 사용)
-                id: doc.id,         // 게시글 ID를 임시로 사용
-                rank: '',           // 순위 정보 없음
-                category: '추천',    // 임시 카테고리
-                rating: '4.8',      // 평점 (String 타입)
-                reviewCount: '12',  // 리뷰 수 (String 타입)
+            onTap: () async {
+              // (1) 게시글 데이터에서 bookId 가져오기
+              final String? bookId = data['bookId'];
 
-                // 2. 게시글 데이터 매핑
-                title: data['bookTitle'] ?? '제목 없음',
-                author: data['bookAuthor'] ?? '저자 미상',
-                imageUrl: data['bookImageUrl'] ?? 'https://i.ibb.co/b6yFp7G/book1.jpg',
-                description: data['content'] ?? '상세 설명이 없습니다.',
+              if (bookId == null || bookId.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("책 정보를 찾을 수 없습니다.")));
+                return;
+              }
 
-                // 3. 추가 정보
-                tags: tags,
-                price: 15000,       // 임시 가격
-                discountRate: 10,   // 할인율 (이걸 넣으면 discountedPrice는 자동 계산됨)
-              );
+              try {
+                // (2) 실제 books 컬렉션에서 최신 정보 가져오기
+                final bookDoc = await FirebaseFirestore.instance.collection('books').doc(bookId).get();
 
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => BookDetailScreen(book: bookModel),
-                ),
-              );
+                if (bookDoc.exists) {
+                  // (3) BookModel로 변환 후 상세 페이지 이동
+                  final realBook = BookModel.fromFirestore(bookDoc);
+
+                  if (context.mounted) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => BookDetailScreen(book: realBook),
+                      ),
+                    );
+                  }
+                } else {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("삭제되거나 존재하지 않는 책입니다.")));
+                  }
+                }
+              } catch (e) {
+                print("책 불러오기 오류: $e");
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("오류가 발생했습니다.")));
+                }
+              }
             },
             child: Container(
               height: 110,
@@ -348,11 +356,17 @@ class _PostCard extends StatelessWidget {
                             Text(data['bookTitle'] ?? '제목 없음', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
                             Text(data['bookAuthor'] ?? '저자 미상', style: const TextStyle(fontSize: 14, color: Color(0xFF777777))),
                             const SizedBox(height: 4),
-                            const Row(
+                            // 평점은 게시글 정보가 아닌 실제 책 정보를 보여주는 것이 좋지만,
+                            // 여기서는 UI 표시용으로 게시글 작성 당시 데이터를 쓰거나 비워둡니다.
+                            Row( // const 제거 (변수를 쓰므로 const를 빼야 합니다)
                               children: [
-                                Icon(Icons.star, color: Color(0xFFFBBC05), size: 14),
-                                SizedBox(width: 2),
-                                Text("4.8 (12)", style: TextStyle(fontSize: 12, color: Color(0xFF777777))),
+                                const Icon(Icons.star, color: Color(0xFFFBBC05), size: 14),
+                                const SizedBox(width: 2),
+                                // ★ [수정할 부분] 고정 텍스트 대신 데이터 사용
+                                Text(
+                                    "${data['bookRating'] ?? '0.0'} (${data['bookReviewCount'] ?? '0'})",
+                                    style: const TextStyle(fontSize: 12, color: Color(0xFF777777))
+                                ),
                               ],
                             ),
                           ],
