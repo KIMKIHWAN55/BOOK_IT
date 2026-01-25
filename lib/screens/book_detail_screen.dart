@@ -17,12 +17,14 @@ class BookDetailScreen extends StatefulWidget {
 
 class _BookDetailScreenState extends State<BookDetailScreen> {
   bool isLiked = false; // 좋아요 상태
+  bool isPurchased = false;
   final user = FirebaseAuth.instance.currentUser; // 현재 로그인한 유저
 
   @override
   void initState() {
     super.initState();
     _checkIfLiked(); // 초기 좋아요 상태 확인
+    _checkIfPurchased();
   }
 
   // 좋아요 상태 확인
@@ -41,10 +43,32 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
     }
   }
 
+  void _checkIfPurchased() async {
+    if (user == null) return;
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user!.uid)
+          .collection('purchased_books')
+          .doc(widget.book.id)
+          .get();
+
+      if (mounted) {
+        setState(() {
+          isPurchased = doc.exists; // 문서가 존재하면 true (이미 구매함)
+        });
+      }
+    } catch (e) {
+      print("구매 여부 확인 중 오류: $e");
+    }
+  }
+
   // 좋아요 토글 기능
   void _toggleLike() async {
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("로그인이 필요합니다.")));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("로그인이 필요합니다.")));
       return;
     }
 
@@ -56,7 +80,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
 
     if (isLiked) {
       await ref.delete();
-      if(mounted) setState(() => isLiked = false);
+      if (mounted) setState(() => isLiked = false);
     } else {
       await ref.set({
         'title': widget.book.title,
@@ -64,14 +88,15 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
         'imageUrl': widget.book.imageUrl,
         'likedAt': FieldValue.serverTimestamp(),
       });
-      if(mounted) setState(() => isLiked = true);
+      if (mounted) setState(() => isLiked = true);
     }
   }
 
   // 장바구니 담기 기능
   void _addToCart() async {
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("로그인이 필요합니다.")));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("로그인이 필요합니다.")));
       return;
     }
 
@@ -96,7 +121,8 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
         .set(cartData);
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("장바구니에 담겼습니다.")));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("장바구니에 담겼습니다.")));
     }
   }
 
@@ -114,7 +140,10 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
           // 1. 배경 레이어 (기존 코드 유지)
           // ---------------------------------------------------------
           Positioned(
-            top: 0, left: 0, right: 0, height: 380,
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 380,
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -128,7 +157,10 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
             ),
           ),
           Positioned(
-            top: 206, left: 1, right: 1, height: 434,
+            top: 206,
+            left: 1,
+            right: 1,
+            height: 434,
             child: Container(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
@@ -164,16 +196,20 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                       children: [
                         GestureDetector(
                           onTap: () => Navigator.pop(context),
-                          child: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                          child: const Icon(Icons.arrow_back_ios, color: Colors
+                              .white),
                         ),
                         Stack(
                           children: [
-                            const Icon(Icons.notifications_outlined, color: Colors.white, size: 28),
+                            const Icon(Icons.notifications_outlined,
+                                color: Colors.white, size: 28),
                             Positioned(
                               right: 2, top: 2,
                               child: Container(
                                 width: 10, height: 10,
-                                decoration: const BoxDecoration(color: Color(0xFFEA4335), shape: BoxShape.circle),
+                                decoration: const BoxDecoration(
+                                    color: Color(0xFFEA4335),
+                                    shape: BoxShape.circle),
                               ),
                             )
                           ],
@@ -191,7 +227,9 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(6),
                         boxShadow: [
-                          BoxShadow(color: Colors.black.withOpacity(0.25), offset: const Offset(0, 2), blurRadius: 2),
+                          BoxShadow(color: Colors.black.withOpacity(0.25),
+                              offset: const Offset(0, 2),
+                              blurRadius: 2),
                         ],
                         image: DecorationImage(
                           image: NetworkImage(book.imageUrl),
@@ -212,42 +250,66 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                       children: [
                         Text(
                           book.title,
-                          style: const TextStyle(fontFamily: 'Pretendard', fontSize: 24, fontWeight: FontWeight.w600, color: Color(0xFF222222), letterSpacing: -0.025),
+                          style: const TextStyle(fontFamily: 'Pretendard',
+                              fontSize: 24,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF222222),
+                              letterSpacing: -0.025),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           book.author,
-                          style: const TextStyle(fontFamily: 'Pretendard', fontSize: 14, color: Color(0xFF777777), letterSpacing: -0.05),
+                          style: const TextStyle(fontFamily: 'Pretendard',
+                              fontSize: 14,
+                              color: Color(0xFF777777),
+                              letterSpacing: -0.05),
                         ),
                         const SizedBox(height: 12),
                         Row(
                           children: [
-                            const Icon(Icons.star, color: Color(0xFFFBBC05), size: 16),
+                            const Icon(Icons.star, color: Color(0xFFFBBC05),
+                                size: 16),
                             const SizedBox(width: 4),
-                            Text(book.rating, style: const TextStyle(color: Color(0xFFFBBC05), fontSize: 14, fontWeight: FontWeight.w500)),
+                            Text(book.rating, style: const TextStyle(
+                                color: Color(0xFFFBBC05),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500)),
                             const SizedBox(width: 4),
-                            Text("(${book.reviewCount})", style: const TextStyle(color: Color(0xFF767676), fontSize: 14)),
+                            Text("(${book.reviewCount})",
+                                style: const TextStyle(
+                                    color: Color(0xFF767676), fontSize: 14)),
                           ],
                         ),
                         const SizedBox(height: 12),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            if (book.discountRate != null && book.discountRate! > 0)
+                            if (book.discountRate != null && book
+                                .discountRate! > 0)
                               Text(
                                 "${book.discountRate}%",
-                                style: const TextStyle(fontFamily: 'Pretendard', fontSize: 20, fontWeight: FontWeight.w600, color: Color(0xFFEA4335)),
+                                style: const TextStyle(fontFamily: 'Pretendard',
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFFEA4335)),
                               ),
                             const SizedBox(width: 8),
                             Text(
                               "${currencyFormat.format(book.discountedPrice)}원",
-                              style: const TextStyle(fontFamily: 'Pretendard', fontSize: 20, fontWeight: FontWeight.w600, color: Color(0xFF222222)),
+                              style: const TextStyle(fontFamily: 'Pretendard',
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF222222)),
                             ),
                             const SizedBox(width: 8),
-                            if (book.discountRate != null && book.discountRate! > 0)
+                            if (book.discountRate != null && book
+                                .discountRate! > 0)
                               Text(
                                 "${currencyFormat.format(book.price)}원",
-                                style: const TextStyle(fontFamily: 'Pretendard', fontSize: 14, decoration: TextDecoration.lineThrough, color: Color(0xFF767676)),
+                                style: const TextStyle(fontFamily: 'Pretendard',
+                                    fontSize: 14,
+                                    decoration: TextDecoration.lineThrough,
+                                    color: Color(0xFF767676)),
                               ),
                           ],
                         ),
@@ -263,20 +325,34 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text("줄거리", style: TextStyle(fontFamily: 'Pretendard', fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF222222))),
+                        const Text("줄거리", style: TextStyle(
+                            fontFamily: 'Pretendard',
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF222222))),
                         const SizedBox(height: 10),
                         Text(
-                          book.description.isNotEmpty ? book.description : "줄거리 정보가 없습니다.",
-                          style: const TextStyle(fontFamily: 'Pretendard', fontSize: 16, height: 1.4, color: Color(0xFF767676)),
+                          book.description.isNotEmpty
+                              ? book.description
+                              : "줄거리 정보가 없습니다.",
+                          style: const TextStyle(fontFamily: 'Pretendard',
+                              fontSize: 16,
+                              height: 1.4,
+                              color: Color(0xFF767676)),
                         ),
                         const SizedBox(height: 20),
                         if (book.tags.isNotEmpty)
                           Wrap(
                             spacing: 10,
-                            children: book.tags.map((tag) => Text(
-                              tag.startsWith('#') ? tag : "#$tag",
-                              style: const TextStyle(fontFamily: 'Pretendard', fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF0088DD)),
-                            )).toList(),
+                            children: book.tags.map((tag) =>
+                                Text(
+                                  tag.startsWith('#') ? tag : "#$tag",
+                                  style: const TextStyle(
+                                      fontFamily: 'Pretendard',
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: Color(0xFF0088DD)),
+                                )).toList(),
                           ),
                       ],
                     ),
@@ -290,8 +366,12 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: const [
-                        Text("리뷰", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF222222))),
-                        Text("더보기", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF767676))),
+                        Text("리뷰", style: TextStyle(fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF222222))),
+                        Text("더보기", style: TextStyle(fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF767676))),
                       ],
                     ),
                   ),
@@ -313,12 +393,14 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                             decoration: BoxDecoration(
                               color: const Color(0xFFF9F9F9),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFFEEEEEE)),
+                              border: Border.all(
+                                  color: const Color(0xFFEEEEEE)),
                             ),
                             child: const Center(
                               child: Text(
                                 "아직 등록된 리뷰가 없습니다.",
-                                style: TextStyle(color: Color(0xFF767676), fontSize: 14),
+                                style: TextStyle(
+                                    color: Color(0xFF767676), fontSize: 14),
                               ),
                             ),
                           );
@@ -328,12 +410,20 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           scrollDirection: Axis.horizontal,
                           itemCount: reviews.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 12),
+                          separatorBuilder: (_, __) =>
+                          const SizedBox(width: 12),
                           itemBuilder: (context, index) {
-                            final reviewData = reviews[index].data() as Map<String, dynamic>;
+                            final reviewData = reviews[index].data() as Map<
+                                String,
+                                dynamic>;
+                            double rating = double.tryParse(
+                                reviewData['rating'].toString()) ?? 5.0;
+                            Timestamp? createdAt = reviewData['createdAt'] as Timestamp?;
                             return _buildReviewCard(
                                 reviewData['userName'] ?? '익명',
-                                reviewData['content'] ?? ''
+                                reviewData['content'] ?? '',
+                                rating,
+                                createdAt
                             );
                           },
                         );
@@ -353,7 +443,8 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
             bottom: 0, left: 0, right: 0,
             child: Container(
               height: 100,
-              padding: const EdgeInsets.only(top: 18, left: 24, right: 24, bottom: 30),
+              padding: const EdgeInsets.only(
+                  top: 18, left: 24, right: 24, bottom: 30),
               decoration: const BoxDecoration(
                 color: Colors.white,
                 border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
@@ -372,7 +463,9 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                           size: 24,
                         ),
                         const SizedBox(height: 4),
-                        const Text("좋아요", style: TextStyle(fontSize: 10, color: Color(0xFF222222))),
+                        const Text(
+                            "좋아요", style: TextStyle(fontSize: 10, color: Color(
+                            0xFF222222))),
                       ],
                     ),
                   ),
@@ -384,9 +477,12 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: const [
-                        Icon(Icons.shopping_cart_outlined, color: Color(0xFF222222), size: 24),
+                        Icon(Icons.shopping_cart_outlined,
+                            color: Color(0xFF222222), size: 24),
                         SizedBox(height: 4),
-                        Text("장바구니", style: TextStyle(fontSize: 10, color: Color(0xFF222222))),
+                        Text(
+                            "장바구니", style: TextStyle(fontSize: 10, color: Color(
+                            0xFF222222))),
                       ],
                     ),
                   ),
@@ -394,27 +490,52 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
 
                   // 구매하기 버튼 -> 결제 페이지로 이동
                   GestureDetector(
-                    onTap: () {
+                    // 👇 이미 구매했으면 클릭 안 되게 처리 (null)
+                    onTap: isPurchased
+                        ? () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("이미 소장하고 있는 도서입니다."))
+                      );
+                    }
+                        : () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => PaymentScreen(
-                            items: [{
-                              'title': book.title,
-                              'author': book.author,
-                              'imageUrl': book.imageUrl,
-                              'price': book.discountedPrice
-                            }],
-                            totalPrice: book.discountedPrice,
-                          ),
+                          builder: (context) =>
+                              PaymentScreen(
+                                items: [{
+                                  'id': book.id,
+                                  'title': book.title,
+                                  'author': book.author,
+                                  'imageUrl': book.imageUrl,
+                                  'price': book.discountedPrice
+                                }
+                                ],
+                                totalPrice: book.discountedPrice,
+                              ),
                         ),
                       );
                     },
                     child: Container(
                       width: 219, height: 52,
-                      decoration: BoxDecoration(color: const Color(0xFFD45858), borderRadius: BorderRadius.circular(8)),
-                      child: const Center(
-                        child: Text("구매하기", style: TextStyle(fontFamily: 'Pretendard', fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+                      decoration: BoxDecoration(
+                        // 👇 구매했으면 회색, 아니면 원래 색(빨강)
+                          color: isPurchased
+                              ? const Color(0xFFDBDBDB)
+                              : const Color(0xFFD45858),
+                          borderRadius: BorderRadius.circular(8)
+                      ),
+                      child: Center(
+                        child: Text(
+                          // 👇 텍스트도 변경
+                            isPurchased ? "구매완료" : "구매하기",
+                            style: const TextStyle(
+                                fontFamily: 'Pretendard',
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white
+                            )
+                        ),
                       ),
                     ),
                   ),
@@ -428,9 +549,17 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
   }
 
   // 리뷰 카드 위젯 (기존 유지)
-  Widget _buildReviewCard(String user, String content) {
+  Widget _buildReviewCard(String user, String content, double rating,
+      Timestamp? timestamp) {
+    // 날짜 변환
+    String dateStr = "날짜 없음";
+    if (timestamp != null) {
+      dateStr = DateFormat('yyyy. MM. dd').format(timestamp.toDate());
+    }
+
     return Container(
-      width: 291, height: 147,
+      width: 291,
+      height: 147,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -438,23 +567,35 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
         border: Border.all(color: const Color(0xFFE5E5E5)),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start, // 👈 1. 왼쪽 정렬 추가
         children: [
           Row(
-            children: [for(int i=0; i<5; i++) const Icon(Icons.star, color: Color(0xFFFBBC05), size: 14)],
+            // 별점 표시
+            children: List.generate(5, (index) {
+              return Icon(
+                  index < rating ? Icons.star : Icons.star_border,
+                  color: const Color(0xFFFBBC05),
+                  size: 14
+              );
+            }),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 8), // 👈 2. 별점과 이름 사이 간격 추가
           Row(
             children: [
-              Text(user, style: const TextStyle(fontSize: 12, color: Color(0xFF767676))),
+              Text(user, style: const TextStyle(
+                  fontSize: 12, color: Color(0xFF767676))),
               const SizedBox(width: 8),
               Container(width: 1, height: 10, color: const Color(0xFFDDDDDD)),
               const SizedBox(width: 8),
-              const Text("2025. 10. 10", style: TextStyle(fontSize: 12, color: Color(0xFF767676))),
+              Text(dateStr, style: const TextStyle(
+                  fontSize: 12, color: Color(0xFF767676))),
             ],
           ),
           const SizedBox(height: 10),
-          Text(content, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, color: Color(0xFF222222), height: 1.4)),
+          Text(content, maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  fontSize: 14, color: Color(0xFF222222), height: 1.4)),
         ],
       ),
     );

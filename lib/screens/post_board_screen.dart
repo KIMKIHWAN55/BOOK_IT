@@ -37,6 +37,7 @@ class _PostBoardScreenState extends State<PostBoardScreen> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
     return Scaffold(
       backgroundColor: const Color(0xFFF1F1F5),
       // 상단 앱바
@@ -81,9 +82,34 @@ class _PostBoardScreenState extends State<PostBoardScreen> with SingleTickerProv
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildRecentFeed(), // 1. 최근 소식 (Firestore 연동)
-                const Center(child: Text("좋아요 탭 준비중")), // 2. 좋아요 (준비중)
-                const Center(child: Text("나의 글 탭 준비중")), // 3. 나의 글 (준비중)
+            // 1. 최근 소식 (기존 함수 재사용)
+                _buildFilteredFeed(
+                  query: FirebaseFirestore.instance
+                      .collection('posts')
+                      .orderBy('createdAt', descending: true),
+                  emptyMessage: "등록된 글이 없습니다.",
+                ), // 1. 최근 소식 (Firestore 연동)
+// 🌟 2. [추가] 좋아요한 글
+                user == null
+                    ? const Center(child: Text("로그인이 필요합니다."))
+                    : _buildFilteredFeed(
+                    query: FirebaseFirestore.instance
+                        .collection('posts')
+                        .where('likedBy', arrayContains: user.uid) // 좋아요한 유저 목록에 내 UID가 있는지 확인
+                        .orderBy('createdAt', descending: true),
+                    emptyMessage: "좋아요한 게시글이 없습니다."
+                ),
+
+                // 🌟 3. [추가] 나의 글
+                user == null
+                    ? const Center(child: Text("로그인이 필요합니다."))
+                    : _buildFilteredFeed(
+                    query: FirebaseFirestore.instance
+                        .collection('posts')
+                        .where('uid', isEqualTo: user.uid) // 작성자가 나인 경우 (필드명이 uid라고 가정)
+                        .orderBy('createdAt', descending: true),
+                    emptyMessage: "작성한 게시글이 없습니다."
+                ),
               ],
             ),
           ),
@@ -92,29 +118,29 @@ class _PostBoardScreenState extends State<PostBoardScreen> with SingleTickerProv
     );
   }
 
-  // 🔹 Firestore 실시간 데이터 스트림
-  Widget _buildRecentFeed() {
+// 🔹 공통 피드 빌더 함수 (중복 제거를 위해 생성)
+  Widget _buildFilteredFeed({required Query query, required String emptyMessage}) {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('posts')
-          .orderBy('createdAt', descending: true) // 최신순 정렬
-          .snapshots(),
+      stream: query.snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
+        if (snapshot.hasError) {
+          // 인덱스 생성 필요 에러가 발생할 수 있음 (콘솔 확인 필요)
+          return Center(child: Text("데이터 로드 오류: ${snapshot.error}"));
+        }
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return const Center(child: Text("등록된 글이 없습니다."));
+          return Center(child: Text(emptyMessage));
         }
 
         final docs = snapshot.data!.docs;
-
         return ListView.separated(
           padding: const EdgeInsets.all(16),
           itemCount: docs.length,
           separatorBuilder: (context, index) => const SizedBox(height: 24),
           itemBuilder: (context, index) {
-            return _PostCard(doc: docs[index]); // 개별 카드 위젯 호출
+            return _PostCard(doc: docs[index]); // 기존 _PostCard 위젯 재사용
           },
         );
       },

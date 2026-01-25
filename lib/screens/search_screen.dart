@@ -85,10 +85,9 @@ class _SearchScreenState extends State<SearchScreen> {
             child: _searchText.isEmpty
                 ? _buildEmptyState()
                 : StreamBuilder<QuerySnapshot>(
+              // 1. Firestore에서는 모든 책을 불러옵니다 (쿼리 조건 제거)
               stream: FirebaseFirestore.instance
                   .collection('books')
-                  .where('title', isGreaterThanOrEqualTo: _searchText)
-                  .where('title', isLessThanOrEqualTo: '$_searchText\uf8ff')
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
@@ -99,19 +98,26 @@ class _SearchScreenState extends State<SearchScreen> {
                 }
 
                 final docs = snapshot.data!.docs;
-                if (docs.isEmpty) {
+
+                // 2. 앱 내부에서 'contains'를 사용하여 중간 글자까지 검색되도록 필터링합니다.
+                final books = docs.map((doc) => BookModel.fromFirestore(doc)).where((book) {
+                  final titleLower = book.title.toLowerCase();
+                  final searchLower = _searchText.toLowerCase();
+                  final authorLower = book.author.toLowerCase();
+
+                  // 제목 또는 작가 이름에 검색어가 '포함'되어 있으면 결과에 추가
+                  return titleLower.contains(searchLower) || authorLower.contains(searchLower);
+                }).toList();
+
+                if (books.isEmpty) {
                   return const Center(child: Text("검색 결과가 없습니다."));
                 }
-
-                final books =
-                docs.map((doc) => BookModel.fromFirestore(doc)).toList();
 
                 return ListView.builder(
                   padding: const EdgeInsets.only(top: 10),
                   itemCount: books.length,
                   itemBuilder: (context, index) {
                     final book = books[index];
-                    // 👇 상세 페이지 이동 기능 추가됨
                     return GestureDetector(
                       onTap: () {
                         Navigator.push(

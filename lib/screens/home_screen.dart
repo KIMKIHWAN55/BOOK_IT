@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:bookit_app/models/book_model.dart';
 import 'package:bookit_app/screens/book_detail_screen.dart';
+import 'package:bookit_app/screens/category_screen.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -39,10 +40,27 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: Colors.white,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
+        // 1. 왼쪽: 카테고리 메뉴 버튼 (leading)
+        leading: IconButton(
+          icon: const Icon(Icons.menu, color: Colors.white), // 배경이 어두우므로 흰색 아이콘 사용
+          onPressed: () {
+            // 카테고리 화면으로 이동 (파일이 만들어져 있어야 함)
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const CategoryScreen()),
+            );
+          },
+        ),
+
+        // 2. 배경 설정 (투명)
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+
+        // 3. 오른쪽: 검색, 장바구니, 알림 버튼 (actions) -> 기존 코드 유지!
         actions: [
           IconButton(
               onPressed: () {
-                Navigator.pushNamed(context, '/search'); // 검색 화면으로 이동
+                Navigator.pushNamed(context, '/search'); // 검색 화면 이동
               },
               icon: const Icon(Icons.search, color: Colors.white)
           ),
@@ -55,10 +73,11 @@ class _HomeScreenState extends State<HomeScreen> {
               Positioned(top: 10, right: 8, child: _buildBadge("3")),
             ],
           ),
-          IconButton(onPressed: () {}, icon: const Icon(Icons.notifications_none, color: Colors.white)),
+          IconButton(
+              onPressed: () {},
+              icon: const Icon(Icons.notifications_none, color: Colors.white)
+          ),
         ],
-        backgroundColor: Colors.transparent,
-        elevation: 0,
       ),
       body: SingleChildScrollView(
         child: Column(
