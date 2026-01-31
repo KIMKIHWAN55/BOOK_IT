@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:bookit_app/screens/profile_setup_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class VerificationScreen extends StatefulWidget {
   final String email;
@@ -105,12 +107,12 @@ class _VerificationScreenState extends State<VerificationScreen> {
     setState(() { _isLoading = true; });
 
     try {
+      // 1. 클라우드 함수에 인증 및 가입 요청
       final url = Uri.parse('https://verifycodeandfinalizesignup-o4apuahgma-uc.a.run.app');
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
-          // ✨ 여기서도 반드시 정규화
           'email': widget.email.trim().toLowerCase(),
           'password': widget.password,
           'name': widget.name,
@@ -121,22 +123,55 @@ class _VerificationScreenState extends State<VerificationScreen> {
 
       if (response.statusCode == 200) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('회원가입을 축하합니다! 이제 로그인해주세요.'), duration: Duration(seconds: 2)),
-          );
-          await Future.delayed(const Duration(seconds: 2));
-          if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+          // 2. 가입 성공 시, 바로 "자동 로그인"을 수행해 userCredential을 얻습니다.
+          try {
+            final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+              email: widget.email,
+              password: widget.password,
+            );
+
+            // ---------------------------------------------------------
+            // 🌟 [여기입니다] 질문하신 코드를 이 위치에 넣습니다.
+            // ---------------------------------------------------------
+            if (userCredential.user != null) {
+              // Firestore에 기본 정보 저장
+              await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
+                'email': widget.email, // widget.email로 변수명 맞춰주세요
+                'role': 'user',
+                'name': widget.name,      // 가입 시 입력받은 이름
+                'nickname': widget.nickname, // 가입 시 입력받은 닉네임
+                'createdAt': FieldValue.serverTimestamp(),
+              }, SetOptions(merge: true));
+
+              // 바로 로그인화면/메인으로 가지 않고 프로필 설정 화면으로 이동
+              if (mounted) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ProfileSetupScreen()),
+                );
+              }
+            }
+            // ---------------------------------------------------------
+
+          } catch (e) {
+            // 자동 로그인 실패 시 (네트워크 오류 등) -> 로그인 화면으로 이동
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('가입은 완료되었으나 자동 로그인에 실패했습니다. 로그인해주세요.')),
+            );
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          }
         }
       } else if (response.statusCode == 409) {
-        // ✨ 이미 존재 → 로그인 안내로 자연스럽게 전환
+        // 이미 가입된 이메일 처리
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('이미 가입된 이메일입니다. 로그인 화면으로 이동합니다.'), duration: Duration(seconds: 2)),
+            const SnackBar(content: Text('이미 가입된 이메일입니다. 로그인 화면으로 이동합니다.')),
           );
           await Future.delayed(const Duration(seconds: 2));
           if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
         }
       } else {
+        // 기타 인증 실패
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('인증에 실패했습니다: ${response.body}')),
@@ -153,7 +188,6 @@ class _VerificationScreenState extends State<VerificationScreen> {
       if (mounted) setState(() { _isLoading = false; });
     }
   }
-
 
   @override
   void dispose() {
