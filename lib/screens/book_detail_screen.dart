@@ -365,13 +365,17 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: const [
-                        Text("리뷰", style: TextStyle(fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF222222))),
-                        Text("더보기", style: TextStyle(fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF767676))),
+                      children: [
+                        const Text("리뷰", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF222222))),
+
+                        // 👇 여기를 수정하세요: GestureDetector로 감싸고 onTap 연결
+                        GestureDetector(
+                          onTap: _showAllReviewsBottomSheet, // 👈 방금 만든 함수 연결
+                          child: const Text(
+                              "더보기",
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF767676))
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -596,6 +600,112 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                   fontSize: 14, color: Color(0xFF222222), height: 1.4)),
+        ],
+      ),
+    );
+  }
+  // 🔹 바텀 시트로 전체 리뷰 보여주기
+  void _showAllReviewsBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.8,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text("전체 리뷰", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('books')
+                      .doc(widget.book.id)
+                      .collection('reviews')
+                      .orderBy('createdAt', descending: true)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      return const Center(child: Text("리뷰가 없습니다."));
+                    }
+                    final docs = snapshot.data!.docs;
+
+                    return ListView.separated(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: docs.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 16),
+                      itemBuilder: (context, index) {
+                        final data = docs[index].data() as Map<String, dynamic>;
+                        double rating = double.tryParse(data['rating'].toString()) ?? 5.0;
+                        Timestamp? createdAt = data['createdAt'] as Timestamp?;
+
+                        return _buildVerticalReviewItem(
+                            data['userName'] ?? '익명',
+                            data['content'] ?? '',
+                            rating,
+                            createdAt
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // 🔹 세로 리스트용 아이템 위젯
+  Widget _buildVerticalReviewItem(String user, String content, double rating, Timestamp? timestamp) {
+    String dateStr = timestamp != null
+        ? DateFormat('yyyy. MM. dd').format(timestamp.toDate())
+        : "";
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE5E5E5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: List.generate(5, (index) => Icon(
+                    index < rating ? Icons.star : Icons.star_border,
+                    color: const Color(0xFFFBBC05), size: 16
+                )),
+              ),
+              Text(dateStr, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(user, style: const TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text(content, style: const TextStyle(height: 1.4)),
         ],
       ),
     );

@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:bookit_app/models/book_model.dart';
 import 'package:bookit_app/screens/book_detail_screen.dart';
 import 'package:bookit_app/screens/category_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -36,6 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
     return Scaffold(
       backgroundColor: Colors.white,
       extendBodyBehindAppBar: true,
@@ -70,7 +72,24 @@ class _HomeScreenState extends State<HomeScreen> {
               IconButton(
                   onPressed: () => Navigator.pushNamed(context, '/cart'),
                   icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white)),
-              Positioned(top: 10, right: 8, child: _buildBadge("3")),
+// 🌟 [수정] 장바구니 개수 실시간 연동
+              if (user != null)
+                Positioned(
+                  top: 10, right: 8,
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(user.uid)
+                        .collection('cart')
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                        return const SizedBox(); // 데이터 없으면 숨김
+                      }
+                      return _buildBadge(snapshot.data!.docs.length.toString());
+                    },
+                  ),
+                ),
             ],
           ),
           IconButton(
