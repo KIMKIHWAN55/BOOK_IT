@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Auth 추가
 import '../models/book_model.dart';
-import 'payment_screen.dart'; // 결제 스크린 import (새로 생성 필요)
+import '../../cart/views/payment_screen.dart'; // 결제 스크린 import (새로 생성 필요)
 
 class BookDetailScreen extends StatefulWidget {
   final BookModel book;

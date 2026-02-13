@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:bookit_app/screens/write_post_screen.dart';
-import 'package:bookit_app/screens/book_detail_screen.dart'; // ★ 사용자님의 상세 페이지 import
-import 'package:bookit_app/models/book_model.dart'; // ★ BookModel이 정의된 파일 import
+import 'package:bookit_app/features/board/views/write_post_screen.dart';
+import 'package:bookit_app/features/book/views/book_detail_screen.dart'; // ★ 사용자님의 상세 페이지 import
+import 'package:bookit_app/features/book/models/book_model.dart'; // ★ BookModel이 정의된 파일 import
 
 class PostBoardScreen extends StatefulWidget {
   const PostBoardScreen({super.key});

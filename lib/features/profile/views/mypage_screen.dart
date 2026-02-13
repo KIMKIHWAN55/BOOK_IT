@@ -1,12 +1,12 @@
+import 'package:bookit_app/features/profile/views/profile_edit_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:bookit_app/screens/login_screen.dart';
-import 'package:bookit_app/screens/admin_book_list_screen.dart';
-import 'package:bookit_app/screens/admin_add_book_screen.dart';
-import 'package:bookit_app/screens/profile_edit_screen.dart';
-import 'package:bookit_app/models/user_model.dart';
-import 'package:bookit_app/screens/settings_screen.dart';
+import 'package:bookit_app/features/auth/views/login_screen.dart';
+import 'package:bookit_app/features/admin/views/admin_book_list_screen.dart';
+import 'package:bookit_app/features/admin/views/admin_add_book_screen.dart';
+import 'package:bookit_app/features/profile/models/user_model.dart';
+import 'package:bookit_app/features/profile/views/settings_screen.dart';
 import 'liked_books_screen.dart'; // ★ 새로 만든 전체보기 화면 import
 
 class MyPageScreen extends StatefulWidget {

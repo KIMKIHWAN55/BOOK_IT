@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/book_model.dart';
+import '../../book/models/book_model.dart';
 import 'admin_add_book_screen.dart';
 
 class AdminBookListScreen extends StatelessWidget {

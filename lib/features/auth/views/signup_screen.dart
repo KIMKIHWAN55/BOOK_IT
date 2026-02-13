@@ -1,4 +1,4 @@
-import 'package:bookit_app/screens/verification_screen.dart';
+import 'package:bookit_app/features/auth/views/verification_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';

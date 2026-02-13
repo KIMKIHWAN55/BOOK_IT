@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:bookit_app/models/book_model.dart';
+import 'package:bookit_app/features/book/models/book_model.dart';
 import 'book_detail_screen.dart'; // 👈 상세 페이지 import 필수
 
 class SearchScreen extends StatefulWidget {

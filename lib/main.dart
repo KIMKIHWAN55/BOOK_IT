@@ -1,17 +1,17 @@
-import 'package:bookit_app/screens/cart_screen.dart';
-import 'package:bookit_app/screens/chat_screen.dart';
+import 'package:bookit_app/features/cart/views/cart_screen.dart';
+import 'package:bookit_app/features/chat/views/chat_screen.dart';
 import 'package:bookit_app/screens/home_screen.dart';
-import 'package:bookit_app/screens/intro_chat_screen.dart';
-import 'package:bookit_app/screens/login_screen.dart';
-import 'package:bookit_app/screens/signup_screen.dart';
-import 'package:bookit_app/screens/app_intro_screen.dart'; // 인트로 화면
+import 'package:bookit_app/features/chat/views/intro_chat_screen.dart';
+import 'package:bookit_app/features/auth/views/login_screen.dart';
+import 'package:bookit_app/features/auth/views/signup_screen.dart';
+import 'package:bookit_app/features/auth/views/app_intro_screen.dart'; // 인트로 화면
 import 'package:bookit_app/screens/main_screen.dart';
-import 'package:bookit_app/screens/search_screen.dart';
+import 'package:bookit_app/features/book/views/search_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // 🔸 추가됨
-import 'package:bookit_app/screens/library_screen.dart';
+import 'package:bookit_app/features/book/views/library_screen.dart';
 import 'firebase_options.dart';
 
 

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:bookit_app/screens/profile_setup_screen.dart';
+import 'package:bookit_app/features/profile/views/profile_setup_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class VerificationScreen extends StatefulWidget {

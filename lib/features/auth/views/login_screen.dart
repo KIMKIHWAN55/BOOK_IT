@@ -2,8 +2,8 @@ import 'package:flutter/foundation.dart' show kIsWeb; // 웹 플랫폼 확인을
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart'; // 구글 로그인 패키지 import
-import 'package:bookit_app/screens/find_id_screen.dart';
-import 'package:bookit_app/screens/find_pw_screen.dart';
+import 'package:bookit_app/features/auth/views/find_id_screen.dart';
+import 'package:bookit_app/features/auth/views/find_pw_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

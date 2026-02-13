@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart'; // 스토리지 추가
 import 'package:image_picker/image_picker.dart'; // 이미지 피커 추가
-import 'signup_complete_screen.dart';
+import '../../auth/views/signup_complete_screen.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   const ProfileSetupScreen({super.key});

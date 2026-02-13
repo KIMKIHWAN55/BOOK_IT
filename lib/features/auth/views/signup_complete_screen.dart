@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:bookit_app/screens/login_screen.dart'; // 로그인 화면 import
+import 'package:bookit_app/features/auth/views/login_screen.dart'; // 로그인 화면 import
 
 class SignupCompleteScreen extends StatelessWidget {
   const SignupCompleteScreen({super.key});

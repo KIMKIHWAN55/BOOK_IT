@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../models/book_model.dart';
-import 'book_detail_screen.dart';
+import '../../book/models/book_model.dart';
+import '../../book/views/book_detail_screen.dart';
 
 class LikedBooksScreen extends StatelessWidget {
   const LikedBooksScreen({super.key});
