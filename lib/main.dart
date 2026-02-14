@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // 🌟 [필수] Riverpod 패키지 임포트
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_app_check/firebase_app_check.dart'; // 🌟 [필수] 패키지 임포트
 import 'firebase_options.dart';
 import 'core/router/app_router.dart';
 import 'core/constants/app_colors.dart';
@@ -13,6 +14,12 @@ Future<void> main() async {
   // 1. Firebase 초기화
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // 🌟 [추가] App Check 활성화 (안드로이드 전용)
+  // iOS 설정은 아예 뺐으므로 아이폰에서는 App Check가 동작하지 않음 (오류도 안 남)
+  await FirebaseAppCheck.instance.activate(
+    androidProvider: AndroidProvider.playIntegrity,
   );
 
   // 2. SharedPreferences 초기화 (온보딩 여부 확인)
@@ -43,7 +50,6 @@ class BookitApp extends StatelessWidget {
         fontFamily: 'Pretendard',
         scaffoldBackgroundColor: AppColors.background,
         primaryColor: AppColors.primary,
-        // 텍스트 선택 커서 색상 등 세부 설정도 가능
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.primary,
           primary: AppColors.primary,
@@ -55,7 +61,7 @@ class BookitApp extends StatelessWidget {
         ),
       ),
 
-      // 🌟 초기 경로 설정 (앱 켤 때 어디로 갈지 결정)
+      // 🌟 초기 경로 설정
       initialRoute: _getInitialRoute(),
 
       // 🌟 라우터 연결
@@ -64,15 +70,11 @@ class BookitApp extends StatelessWidget {
   }
 
   // 🌟 첫 시작 페이지 결정 로직
-  // (Riverpod을 써도 앱 시작 시점의 단순 분기는 이렇게 함수로 처리해도 깔끔합니다)
   String _getInitialRoute() {
-    // 1. 온보딩을 안 봤으면 -> 온보딩 화면
     if (!onboardingSeen) {
       return AppRouter.intro;
     }
 
-    // 2. 온보딩은 봤는데 로그인을 안 했으면 -> 로그인 화면
-    // 3. 로그인도 되어 있으면 -> 메인 화면
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       return AppRouter.main;

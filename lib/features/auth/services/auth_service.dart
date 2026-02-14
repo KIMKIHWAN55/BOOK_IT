@@ -1,15 +1,26 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // 🌟 Riverpod 추가
 import 'package:email_otp/email_otp.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:http/http.dart' as http; // 🌟 API 통신용 추가
-import 'dart:convert'; // 🌟 JSON 변환용 추가
-import 'package:cloud_firestore/cloud_firestore.dart'; // 🌟 Firestore 추가
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+// 🌟 [Riverpod] 서비스 Provider 생성
+final authServiceProvider = Provider<AuthService>((ref) {
+  return AuthService();
+});
+
+// 🌟 [Riverpod] 인증 상태 감지 Provider
+final authStateProvider = StreamProvider<User?>((ref) {
+  return FirebaseAuth.instance.authStateChanges();
+});
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance; // Firestore 인스턴스
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // ==========================================
   // 1. 로그인 관련 로직
@@ -23,7 +34,7 @@ class AuthService {
     );
   }
 
-  // 구글 로그인
+  // 구글 로그인 (요청하신 대로 원본 코드 유지)
   Future<UserCredential?> signInWithGoogle() async {
     if (kIsWeb) {
       final provider = GoogleAuthProvider();
@@ -45,11 +56,17 @@ class AuthService {
     }
   }
 
+  // 로그아웃 (편의상 추가)
+  Future<void> signOut() async {
+    await _googleSignIn.signOut();
+    await _auth.signOut();
+  }
+
   // ==========================================
   // 2. 회원가입 및 본인 인증 관련 로직
   // ==========================================
 
-  // 이메일 인증 코드 발송 (회원가입 첫 화면)
+  // 이메일 인증 코드 발송
   Future<void> sendEmailVerificationCode(String email) async {
     final url = Uri.parse('https://sendverificationcode-o4apuahgma-uc.a.run.app');
     final response = await http.post(
@@ -63,7 +80,7 @@ class AuthService {
     }
   }
 
-  // 인증 코드 재전송 (인증 화면)
+  // 인증 코드 재전송
   Future<void> resendVerificationCode(String email) async {
     final url = Uri.parse('https://sendverificationcode-o4apuahgma-uc.a.run.app');
     final response = await http.post(
@@ -77,8 +94,7 @@ class AuthService {
     }
   }
 
-  // 인증 코드 확인 및 최종 회원가입 처리 (인증 화면)
-  // 반환값: 200(성공), 409(중복), 그 외 예외
+  // 인증 코드 확인 및 최종 회원가입 처리
   Future<int> verifyCodeAndFinalizeSignup({
     required String email,
     required String password,
@@ -110,7 +126,7 @@ class AuthService {
   // 3. 사용자 정보 DB 관리 로직
   // ==========================================
 
-  // Firestore에 유저 기본 정보 저장 (인증 및 가입 완료 후 실행)
+  // Firestore에 유저 기본 정보 저장
   Future<void> saveUserToFirestore({
     required String uid,
     required String email,
@@ -127,12 +143,15 @@ class AuthService {
       'createdAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
-// 4. [수정됨] 아이디 찾기 (이름 + 휴대폰 번호)
+
+  // ==========================================
+  // 4. 아이디 찾기 (보안 적용)
   // ==========================================
   Future<String?> findUserId({required String name, required String phone}) async {
     final snapshot = await _firestore.collection('users')
         .where('name', isEqualTo: name)
-        .where('phone', isEqualTo: phone) // 🌟 이메일 대신 휴대폰 번호로 검색
+        .where('phone', isEqualTo: phone)
+        .limit(1) // 🌟 [보안] Firestore 규칙(limit <= 1) 통과를 위해 필수
         .get();
 
     if (snapshot.docs.isNotEmpty) return snapshot.docs.first.get('email');
@@ -140,32 +159,38 @@ class AuthService {
   }
 
   // ==========================================
-  // 5. [수정됨] 비밀번호 찾기 (Firebase 재설정 링크)
+  // 5. 비밀번호 찾기 (보안 적용)
   // ==========================================
-  // 먼저 해당 유저(이름+이메일)가 DB에 진짜 있는지 확인
   Future<bool> checkUserExists({required String name, required String email}) async {
     final snapshot = await _firestore.collection('users')
         .where('name', isEqualTo: name)
         .where('email', isEqualTo: email)
+        .limit(1) // 🌟 [보안]
         .get();
     return snapshot.docs.isNotEmpty;
   }
 
-  // Firebase에서 제공하는 비밀번호 재설정 이메일 발송
+  // 비밀번호 재설정 이메일 발송
   Future<void> sendPasswordResetEmail(String email) async {
     await _auth.sendPasswordResetEmail(email: email);
   }
 
   // ==========================================
-  // 6. [신규] 회원가입 중복 검사
+  // 6. 회원가입 중복 검사 (보안 적용)
   // ==========================================
   Future<bool> isEmailDuplicate(String email) async {
-    final snap = await _firestore.collection('users').where('email', isEqualTo: email).get();
+    final snap = await _firestore.collection('users')
+        .where('email', isEqualTo: email)
+        .limit(1) // 🌟 [보안]
+        .get();
     return snap.docs.isNotEmpty;
   }
 
   Future<bool> isNicknameDuplicate(String nickname) async {
-    final snap = await _firestore.collection('users').where('nickname', isEqualTo: nickname).get();
+    final snap = await _firestore.collection('users')
+        .where('nickname', isEqualTo: nickname)
+        .limit(1) // 🌟 [보안]
+        .get();
     return snap.docs.isNotEmpty;
   }
 }
