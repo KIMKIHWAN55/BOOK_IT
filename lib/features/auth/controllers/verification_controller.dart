@@ -1,107 +1,110 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/auth_service.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // 로그인 처리를 위해 필요
 
 enum VerificationStatus { idle, success, duplicated, autoLoginFailed, error }
 
-class VerificationController extends ChangeNotifier {
-  final AuthService _authService = AuthService();
+class VerificationState {
+  final int timeLeft;
+  final bool isLoading;
+  final bool isResending;
 
-  bool _isLoading = false;
-  bool get isLoading => _isLoading;
+  VerificationState({
+    this.timeLeft = 120,
+    this.isLoading = false,
+    this.isResending = false,
+  });
 
-  bool _isResending = false;
-  bool get isResending => _isResending;
+  VerificationState copyWith({int? timeLeft, bool? isLoading, bool? isResending}) {
+    return VerificationState(
+      timeLeft: timeLeft ?? this.timeLeft,
+      isLoading: isLoading ?? this.isLoading,
+      isResending: isResending ?? this.isResending,
+    );
+  }
+}
 
-  int _timeLeft = 120;
-  int get timeLeft => _timeLeft;
+// 🌟 autoDispose를 빼고 가장 기본적이고 안전한 NotifierProvider 사용
+final verificationControllerProvider = NotifierProvider<VerificationController, VerificationState>(() {
+  return VerificationController();
+});
+
+// 🌟 기본 Notifier 상속
+class VerificationController extends Notifier<VerificationState> {
   Timer? _timer;
 
-  // 타이머 시작
-  void startTimer() {
+  @override
+  VerificationState build() {
+    return VerificationState();
+  }
+
+  // 🌟 수동으로 타이머를 끄는 함수 추가 (화면이 닫힐 때 호출할 예정)
+  void disposeTimer() {
     _timer?.cancel();
-    _timeLeft = 120;
-    notifyListeners();
+    _timer = null;
+  }
+
+  void startTimer() {
+    disposeTimer(); // 기존 타이머가 있으면 끄기
+    state = state.copyWith(timeLeft: 120); // 다시 들어와도 2분으로 초기화됨!
 
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_timeLeft > 0) {
-        _timeLeft--;
-        notifyListeners();
+      if (state.timeLeft > 0) {
+        state = state.copyWith(timeLeft: state.timeLeft - 1);
       } else {
-        timer.cancel();
+        disposeTimer();
       }
     });
   }
 
-  // 컨트롤러가 버려질 때 타이머 정리
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  // 코드 재전송
   Future<String?> resendCode(String email) async {
-    _isResending = true;
-    notifyListeners();
-
+    state = state.copyWith(isResending: true);
     try {
-      await _authService.resendVerificationCode(email);
-      startTimer(); // 성공 시 타이머 재시작
-      return null; // 성공
+      final authService = ref.read(authServiceProvider);
+      await authService.resendVerificationCode(email);
+      startTimer();
+      return null;
     } catch (e) {
-      return '코드 재전송에 실패했습니다: $e';
+      return '인증 코드 재전송 실패: $e';
     } finally {
-      _isResending = false;
-      notifyListeners();
+      state = state.copyWith(isResending: false);
     }
   }
 
-  // 코드 확인 및 최종 가입, 그리고 자동 로그인까지 한 번에 처리
   Future<VerificationStatus> verifyAndSignup({
-    required String email,
-    required String password,
-    required String name,
-    required String nickname,
-    required String phone,
-    required String code,
+    required String email, required String password,
+    required String name, required String nickname,
+    required String phone, required String code,
     Function(String)? onError,
   }) async {
-    _isLoading = true;
-    notifyListeners();
-
+    state = state.copyWith(isLoading: true);
     try {
-      // 1. 클라우드 함수 호출 (가입)
-      final statusCode = await _authService.verifyCodeAndFinalizeSignup(
+      final authService = ref.read(authServiceProvider);
+      final statusCode = await authService.verifyCodeAndFinalizeSignup(
         email: email, password: password, name: name, nickname: nickname, code: code,
       );
 
-      if (statusCode == 409) return VerificationStatus.duplicated;
+      if (statusCode == 409) {
+        state = state.copyWith(isLoading: false);
+        return VerificationStatus.duplicated;
+      }
 
-      // 2. 가입 성공 시 자동 로그인
       if (statusCode == 200) {
-        final userCredential = await _authService.signInWithEmail(email, password);
-
+        final userCredential = await authService.signInWithEmail(email, password);
         if (userCredential.user != null) {
-          // 3. Firestore 정보 저장
-          await _authService.saveUserToFirestore(
-            uid: userCredential.user!.uid,
-            email: email,
-            name: name,
-            nickname: nickname,
-            phone: phone,
+          await authService.saveUserToFirestore(
+            uid: userCredential.user!.uid, email: email, name: name, nickname: nickname, phone: phone,
           );
+          state = state.copyWith(isLoading: false);
           return VerificationStatus.success;
         }
       }
+      state = state.copyWith(isLoading: false);
       return VerificationStatus.error;
     } catch (e) {
-      onError?.call(e.toString());
+      state = state.copyWith(isLoading: false);
+      if (onError != null) onError(e.toString());
       return VerificationStatus.error;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
     }
   }
 }

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'find_id_screen.dart';
-import 'find_pw_screen.dart';
+
 import '../controllers/auth_controller.dart';
-// 🌟 커스텀 위젯 임포트 (경로 확인 완료)
+// 🌟 우리가 만든 라우터와 색상 테마 임포트
+import '../../../core/constants/app_colors.dart';
+import '../../../core/router/app_router.dart';
 import '../../../shared/widgets/custom_text_field.dart';
 import '../../../shared/widgets/primary_button.dart';
 
@@ -26,52 +27,45 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  // 이메일 로그인 로직
+  // 🌟 이메일 로그인 로직
   Future<void> _handleEmailLogin() async {
     final errorMessage = await ref.read(authControllerProvider.notifier).login(
       _emailController.text.trim(),
       _passwordController.text.trim(),
     );
 
-    if (mounted) {
-      if (errorMessage == null) {
-        Navigator.pushReplacementNamed(context, '/main'); // 메인 화면으로 이동
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
-        );
-      }
+    if (mounted && errorMessage != null) {
+      // 에러가 났을 때만 스낵바를 띄웁니다.
+      // 성공했을 때는 main.dart가 알아서 화면을 바꿔주므로 Navigator 코드가 필요 없습니다!
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMessage)),
+      );
     }
   }
 
-  // 구글 로그인 로직
+  // 🌟 구글 로그인 로직
   Future<void> _handleGoogleLogin() async {
     final errorMessage = await ref.read(authControllerProvider.notifier).loginWithGoogle();
 
-    if (mounted) {
-      if (errorMessage == null) {
-        Navigator.pushReplacementNamed(context, '/main');
-      } else if (errorMessage != 'cancel') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
-        );
-      }
+    if (mounted && errorMessage != null && errorMessage != 'cancel') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMessage)),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // 로딩 상태 구독
-    final authState = ref.watch(authControllerProvider);
-    final isLoading = authState.isLoading;
+    // 🌟 1. 로딩 상태 구독 (bool 타입을 직접 받음!)
+    final isLoading = ref.watch(authControllerProvider).isLoading;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('로그인', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
         centerTitle: true,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: AppColors.background,
+        foregroundColor: AppColors.textMain,
         elevation: 0,
       ),
       body: Stack(
@@ -84,19 +78,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 children: [
                   const SizedBox(height: 80),
 
-                  // 🌟 [교체 완료] 아이디 입력창
-                  // CustomTextField 내부에 padding-bottom: 24가 있어서 별도 SizedBox 불필요
                   CustomTextField(
                     controller: _emailController,
                     hint: '아이디',
                     keyboardType: TextInputType.emailAddress,
                   ),
 
-                  // 🌟 [교체 완료] 비밀번호 입력창
                   CustomTextField(
                     controller: _passwordController,
                     hint: '비밀번호',
-                    isObscure: true, // 비밀번호 가리기
+                    isObscure: true,
                   ),
 
                   Row(
@@ -108,8 +99,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // 🌟 [교체 완료] 메인 로그인 버튼
-                  // 로딩 중일 때 로딩 인디케이터가 버튼 안에 표시됨
                   PrimaryButton(
                     text: '로그인',
                     onPressed: _handleEmailLogin,
@@ -120,7 +109,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   _buildDividerWithText(),
                   const SizedBox(height: 28),
 
-                  // SNS 로그인 버튼들
                   _buildSocialLoginButton(
                     text: '카카오로 시작하기',
                     color: const Color(0xFFFEE500),
@@ -151,12 +139,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('아직 회원이 아니신가요? ', style: TextStyle(fontSize: 14, color: Color(0xFF767676))),
+                      const Text('아직 회원이 아니신가요? ', style: TextStyle(fontSize: 14, color: AppColors.textSub)),
                       GestureDetector(
+                        // 🌟 3. AppRouter 적용
                         onTap: () {
-                          if (!isLoading) Navigator.pushNamed(context, '/signup');
+                          if (!isLoading) Navigator.pushNamed(context, AppRouter.signup);
                         },
-                        child: const Text('회원가입', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFFD45858), decoration: TextDecoration.underline)),
+                        child: const Text('회원가입', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.primary, decoration: TextDecoration.underline)),
                       ),
                     ],
                   ),
@@ -166,11 +155,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
           ),
 
-          // 전체 화면 터치 막기용 투명 오버레이 (선택 사항)
-          // PrimaryButton이 자체적으로 로딩 처리를 하지만, SNS 버튼 등 다른 곳 터치를 막으려면 두는 게 좋습니다.
           if (isLoading)
             Container(
-              color: Colors.transparent, // 배경을 어둡게 하지 않고 투명하게 막기만 함 (버튼 로딩이 보이니까)
+              color: Colors.transparent,
               width: double.infinity,
               height: double.infinity,
             ),
@@ -189,14 +176,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           Container(
             width: 22, height: 22,
             decoration: BoxDecoration(
-              color: _rememberId ? const Color(0xFFD45858) : Colors.transparent,
+              color: _rememberId ? AppColors.primary : Colors.transparent, // 🌟 색상 변경
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: _rememberId ? const Color(0xFFD45858) : Colors.grey),
+              border: Border.all(color: _rememberId ? AppColors.primary : AppColors.border),
             ),
             child: _rememberId ? const Icon(Icons.check, color: Colors.white, size: 16) : null,
           ),
           const SizedBox(width: 8),
-          const Text('아이디 저장', style: TextStyle(fontSize: 14, color: Color(0xFF767676))),
+          const Text('아이디 저장', style: TextStyle(fontSize: 14, color: AppColors.textSub)),
         ],
       ),
     );
@@ -206,13 +193,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Row(
       children: [
         TextButton(
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const FindIdScreen())),
-          child: const Text('아이디 찾기', style: TextStyle(color: Color(0xFF767676))),
+          // 🌟 3. AppRouter 적용
+          onPressed: () => Navigator.pushNamed(context, AppRouter.findId),
+          child: const Text('아이디 찾기', style: TextStyle(color: AppColors.textSub)),
         ),
-        const Text('|', style: TextStyle(color: Color(0xFFCBCBCB))),
+        const Text('|', style: TextStyle(color: AppColors.border)),
         TextButton(
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const FindPwScreen())),
-          child: const Text('비밀번호 찾기', style: TextStyle(color: Color(0xFF767676))),
+          // 🌟 3. AppRouter 적용
+          onPressed: () => Navigator.pushNamed(context, AppRouter.findPw),
+          child: const Text('비밀번호 찾기', style: TextStyle(color: AppColors.textSub)),
         ),
       ],
     );
@@ -221,9 +210,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget _buildDividerWithText() {
     return Row(
       children: const [
-        Expanded(child: Divider(color: Color(0xFF767676), thickness: 0.5)),
-        Padding(padding: EdgeInsets.symmetric(horizontal: 8.0), child: Text('SNS 로그인', style: TextStyle(fontSize: 16, color: Color(0xFF767676)))),
-        Expanded(child: Divider(color: Color(0xFF767676), thickness: 0.5)),
+        Expanded(child: Divider(color: AppColors.border, thickness: 1.0)),
+        Padding(padding: EdgeInsets.symmetric(horizontal: 8.0), child: Text('SNS 로그인', style: TextStyle(fontSize: 14, color: AppColors.textSub))),
+        Expanded(child: Divider(color: AppColors.border, thickness: 1.0)),
       ],
     );
   }
@@ -243,7 +232,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         padding: const EdgeInsets.symmetric(vertical: 15),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: isOutlined ? const BorderSide(color: Color(0xFFC2C2C2)) : BorderSide.none,
+          side: isOutlined ? const BorderSide(color: AppColors.border) : BorderSide.none,
         ),
         elevation: 0,
       ),

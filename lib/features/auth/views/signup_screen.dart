@@ -1,28 +1,30 @@
 import 'package:flutter/material.dart';
-import 'verification_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // 🌟 Riverpod 추가
+
 import '../controllers/signup_controller.dart';
-import '../../../core/constants/app_colors.dart'; // 🌟 AppColors 추가
+import '../../../core/constants/app_colors.dart';
+import '../../../core/router/app_router.dart'; // 🌟 라우터 추가
 import '../../../shared/widgets/custom_text_field.dart';
 import '../../../shared/widgets/primary_button.dart';
 
-class SignUpScreen extends StatefulWidget {
+// 🌟 StatefulWidget ➡️ ConsumerStatefulWidget 으로 변경
+class SignUpScreen extends ConsumerStatefulWidget {
   const SignUpScreen({super.key});
 
   @override
-  State<SignUpScreen> createState() => _SignUpScreenState();
+  ConsumerState<SignUpScreen> createState() => _SignUpScreenState();
 }
 
-class _SignUpScreenState extends State<SignUpScreen> {
-  final SignupController _signupController = SignupController();
+class _SignUpScreenState extends ConsumerState<SignUpScreen> {
+  // 컨트롤러 인스턴스를 직접 만들지 않고 Riverpod으로 주입받습니다.
 
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _passwordConfirmController = TextEditingController();
   final _nameController = TextEditingController();
   final _nicknameController = TextEditingController();
-  final _phoneController = TextEditingController(); // 🌟 휴대폰 컨트롤러 추가
+  final _phoneController = TextEditingController();
 
-  // 🌟 스낵바 띄우는 공통 함수 (성공 시 초록색 알림)
   void _showSnackBar(String msg, {bool isSuccess = false}) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -32,30 +34,27 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
-  // 🌟 이메일 중복 확인 로직
+  // 🌟 함수 호출 시 ref.read(프로바이더.notifier) 사용
   Future<void> _handleCheckEmail() async {
-    final error = await _signupController.checkEmailDuplicate(_emailController.text);
+    final error = await ref.read(signupControllerProvider.notifier).checkEmailDuplicate(_emailController.text);
     if (error != null) _showSnackBar(error);
     else _showSnackBar("사용 가능한 이메일입니다.", isSuccess: true);
   }
 
-  // 🌟 닉네임 중복 확인 로직
   Future<void> _handleCheckNickname() async {
-    final error = await _signupController.checkNicknameDuplicate(_nicknameController.text);
+    final error = await ref.read(signupControllerProvider.notifier).checkNicknameDuplicate(_nicknameController.text);
     if (error != null) _showSnackBar(error);
     else _showSnackBar("사용 가능한 닉네임입니다.", isSuccess: true);
   }
 
-  // 본인 인증 버튼 로직
   Future<void> _handleSendVerification() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
     final name = _nameController.text.trim();
     final nickname = _nicknameController.text.trim();
-    final phone = _phoneController.text.trim(); // 🌟 휴대폰 번호 가져오기
+    final phone = _phoneController.text.trim();
 
-    // 🌟 requestVerification에 phone 파라미터 추가
-    final errorMessage = await _signupController.requestVerification(
+    final errorMessage = await ref.read(signupControllerProvider.notifier).requestVerification(
       email: email,
       password: password,
       passwordConfirm: _passwordConfirmController.text.trim(),
@@ -66,17 +65,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     if (mounted) {
       if (errorMessage == null) {
-        Navigator.push(
+        // 🌟 긴 MaterialPageRoute 대신 방금 만든 AppRouter 활용!
+        Navigator.pushNamed(
           context,
-          MaterialPageRoute(
-            builder: (context) => VerificationScreen(
-              email: email,
-              password: password,
-              name: name,
-              nickname: nickname,
-              phone: phone, // 🌟 다음 화면(VerificationScreen)으로 phone 전달
-            ),
-          ),
+          AppRouter.verification,
+          arguments: {
+            'email': email,
+            'password': password,
+            'name': name,
+            'nickname': nickname,
+            'phone': phone,
+          },
         );
       } else {
         _showSnackBar(errorMessage);
@@ -91,12 +90,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
     _passwordConfirmController.dispose();
     _nameController.dispose();
     _nicknameController.dispose();
-    _phoneController.dispose(); // 🌟 dispose 추가
+    _phoneController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // 🌟 상태(로딩, 중복확인 여부)를 화면 전체에서 구독!
+    // 값이 바뀌면 자동으로 이 화면만 리빌드됩니다. (ListenableBuilder 불필요)
+    final signupState = ref.watch(signupControllerProvider);
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -110,109 +113,96 @@ class _SignUpScreenState extends State<SignUpScreen> {
         foregroundColor: Colors.black,
         elevation: 0,
       ),
-      body: ListenableBuilder(
-          listenable: _signupController,
-          builder: (context, child) {
-            return SafeArea(
-              child: Stack(
+      body: SafeArea(
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 32.0),
+              child: Column(
                 children: [
-                  SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 32.0),
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 40),
+                  const SizedBox(height: 40),
 
-                        // 🌟 이메일 (중복확인 버튼 부착)
-                        CustomTextField(
-                          label: '이메일 (ID)',
-                          hint: 'ID로 사용할 이메일을 입력해 주세요',
-                          icon: Icons.person_outline,
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          onChanged: (_) => _signupController.resetEmailCheck(), // 텍스트 수정 시 초기화
-                          suffixButton: ElevatedButton(
-                            onPressed: _signupController.isEmailVerified ? null : _handleCheckEmail,
-                            style: ElevatedButton.styleFrom(
-                                backgroundColor: _signupController.isEmailVerified ? Colors.grey : AppColors.primary,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
-                            ),
-                            child: Text(_signupController.isEmailVerified ? '확인됨' : '중복확인', style: const TextStyle(color: Colors.white)),
-                          ),
-                        ),
-
-                        CustomTextField(
-                          label: '비밀번호',
-                          hint: '비밀번호를 입력해주세요 (최소 8자 이상)',
-                          icon: Icons.lock_outline,
-                          controller: _passwordController,
-                          isObscure: true,
-                        ),
-
-                        CustomTextField(
-                          label: '비밀번호 확인',
-                          hint: '비밀번호를 확인해주세요',
-                          icon: Icons.lock_outline,
-                          controller: _passwordConfirmController,
-                          isObscure: true,
-                        ),
-
-                        CustomTextField(
-                          label: '이름',
-                          hint: '이름을 입력해주세요',
-                          controller: _nameController,
-                        ),
-
-                        // 🌟 닉네임 (중복확인 버튼 부착)
-                        CustomTextField(
-                          label: '닉네임',
-                          hint: '닉네임을 입력해주세요 (2~20자 이내)',
-                          controller: _nicknameController,
-                          onChanged: (_) => _signupController.resetNicknameCheck(), // 텍스트 수정 시 초기화
-                          suffixButton: ElevatedButton(
-                            onPressed: _signupController.isNicknameVerified ? null : _handleCheckNickname,
-                            style: ElevatedButton.styleFrom(
-                                backgroundColor: _signupController.isNicknameVerified ? Colors.grey : AppColors.primary,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
-                            ),
-                            child: Text(_signupController.isNicknameVerified ? '확인됨' : '중복확인', style: const TextStyle(color: Colors.white)),
-                          ),
-                        ),
-
-                        // 🌟 휴대폰 번호 (새로 추가됨: 아이디 찾기 용도)
-                        CustomTextField(
-                            label: '휴대폰 번호',
-                            hint: '- 없이 숫자만 입력',
-                            icon: Icons.phone_iphone,
-                            controller: _phoneController,
-                            keyboardType: TextInputType.phone
-                        ),
-
-                        const SizedBox(height: 100),
-                      ],
+                  CustomTextField(
+                    label: '이메일 (ID)',
+                    hint: 'ID로 사용할 이메일을 입력해 주세요',
+                    icon: Icons.person_outline,
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    onChanged: (_) => ref.read(signupControllerProvider.notifier).resetEmailCheck(), // 🌟
+                    suffixButton: ElevatedButton(
+                      onPressed: signupState.isEmailVerified ? null : _handleCheckEmail, // 🌟
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: signupState.isEmailVerified ? Colors.grey : AppColors.primary,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
+                      ),
+                      child: Text(signupState.isEmailVerified ? '확인됨' : '중복확인', style: const TextStyle(color: Colors.white)),
                     ),
                   ),
-                  if (_signupController.isLoading)
-                    Container(
-                      color: Colors.black.withOpacity(0.5),
-                      child: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+
+                  CustomTextField(
+                    label: '비밀번호',
+                    hint: '비밀번호를 입력해주세요 (최소 8자 이상)',
+                    icon: Icons.lock_outline,
+                    controller: _passwordController,
+                    isObscure: true,
+                  ),
+
+                  CustomTextField(
+                    label: '비밀번호 확인',
+                    hint: '비밀번호를 확인해주세요',
+                    icon: Icons.lock_outline,
+                    controller: _passwordConfirmController,
+                    isObscure: true,
+                  ),
+
+                  CustomTextField(
+                    label: '이름',
+                    hint: '이름을 입력해주세요',
+                    controller: _nameController,
+                  ),
+
+                  CustomTextField(
+                    label: '닉네임',
+                    hint: '닉네임을 입력해주세요 (2~20자 이내)',
+                    controller: _nicknameController,
+                    onChanged: (_) => ref.read(signupControllerProvider.notifier).resetNicknameCheck(), // 🌟
+                    suffixButton: ElevatedButton(
+                      onPressed: signupState.isNicknameVerified ? null : _handleCheckNickname, // 🌟
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: signupState.isNicknameVerified ? Colors.grey : AppColors.primary,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
+                      ),
+                      child: Text(signupState.isNicknameVerified ? '확인됨' : '중복확인', style: const TextStyle(color: Colors.white)),
                     ),
+                  ),
+
+                  CustomTextField(
+                      label: '휴대폰 번호',
+                      hint: '- 없이 숫자만 입력',
+                      icon: Icons.phone_iphone,
+                      controller: _phoneController,
+                      keyboardType: TextInputType.phone
+                  ),
+
+                  const SizedBox(height: 100),
                 ],
               ),
-            );
-          }
+            ),
+            if (signupState.isLoading) // 🌟
+              Container(
+                color: Colors.black.withOpacity(0.5),
+                child: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+              ),
+          ],
+        ),
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: ListenableBuilder(
-              listenable: _signupController,
-              builder: (context, child) {
-                return PrimaryButton(
-                  text: '이메일로 본인 인증하기',
-                  onPressed: _handleSendVerification,
-                  isLoading: _signupController.isLoading,
-                );
-              }
+          child: PrimaryButton(
+            text: '이메일로 본인 인증하기',
+            onPressed: _handleSendVerification,
+            isLoading: signupState.isLoading, // 🌟
           ),
         ),
       ),
