@@ -16,15 +16,11 @@ class _FindIdScreenState extends State<FindIdScreen> {
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  final List<TextEditingController> _otpControllers = List.generate(4, (_) => TextEditingController());
-  final List<FocusNode> _otpFocusNodes = List.generate(4, (_) => FocusNode());
 
   @override
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
-    for (var c in _otpControllers) { c.dispose(); }
-    for (var n in _otpFocusNodes) { n.dispose(); }
     _controller.dispose();
     super.dispose();
   }
@@ -66,7 +62,7 @@ class _FindIdScreenState extends State<FindIdScreen> {
                     child: _buildBodyByStep(),
                   ),
                   if (_controller.isLoading)
-                    Container(color: Colors.black.withOpacity(0.5), child: const Center(child: CircularProgressIndicator())),
+                    Container(color: Colors.black.withOpacity(0.5), child: const Center(child: CircularProgressIndicator(color: AppColors.primary))),
                 ],
               ),
             );
@@ -89,7 +85,6 @@ class _FindIdScreenState extends State<FindIdScreen> {
         Text("회원가입시 입력한 정보로\n아이디를 찾을 수 있습니다", style: _ptStyle(size: 16, weight: FontWeight.w400, color: AppColors.textMain)),
         const SizedBox(height: 30),
 
-        // 🌟 지저분했던 입력창을 CustomTextField로 완벽하게 교체!
         CustomTextField(
           label: '이름',
           hint: '이름을 입력해주세요',
@@ -104,9 +99,9 @@ class _FindIdScreenState extends State<FindIdScreen> {
         ),
 
         const Spacer(),
-        // 🌟 메인 버튼도 PrimaryButton으로 깔끔하게 교체
+        // 🌟 버튼 텍스트 변경: "인증 번호 발송" -> "아이디 찾기"
         PrimaryButton(
-          text: "인증 번호 발송",
+          text: "아이디 찾기",
           onPressed: _handleSearchId,
           isLoading: _controller.isLoading,
         ),
@@ -114,8 +109,6 @@ class _FindIdScreenState extends State<FindIdScreen> {
       ],
     );
   }
-
-
 
   // [3단계] 결과 화면
   Widget _step3Result() {
@@ -144,36 +137,6 @@ class _FindIdScreenState extends State<FindIdScreen> {
         ),
         const SizedBox(height: 24),
       ],
-    );
-  }
-
-  // OTP 박스 위젯 (AppColors 적용)
-  Widget _buildOtpBox(int index) {
-    bool hasText = _otpControllers[index].text.isNotEmpty;
-    bool hasFocus = _otpFocusNodes[index].hasFocus;
-    Color borderColor = hasFocus || hasText ? AppColors.primary : AppColors.border;
-
-    return Container(
-      width: 68, height: 68,
-      decoration: BoxDecoration(
-        color: hasText ? AppColors.primary.withOpacity(0.2) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor),
-      ),
-      child: TextField(
-        controller: _otpControllers[index],
-        focusNode: _otpFocusNodes[index],
-        textAlign: TextAlign.center,
-        keyboardType: TextInputType.number,
-        maxLength: 1,
-        style: _ptStyle(size: 24, weight: FontWeight.w500, color: AppColors.textMain, height: 1.0),
-        decoration: const InputDecoration(counterText: "", border: InputBorder.none),
-        onChanged: (v) {
-          setState(() {});
-          if (v.isNotEmpty && index < 3) _otpFocusNodes[index+1].requestFocus();
-          if (v.isEmpty && index > 0) _otpFocusNodes[index-1].requestFocus();
-        },
-      ),
     );
   }
 }

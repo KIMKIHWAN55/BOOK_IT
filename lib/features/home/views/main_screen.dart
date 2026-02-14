@@ -1,10 +1,11 @@
 // lib/screens/main_screen.dart
 import 'package:flutter/material.dart';
-import 'package:bookit_app/screens/home_screen.dart';
+import 'package:bookit_app/features/home/views/home_screen.dart';
 import 'package:bookit_app/features/chat/views/intro_chat_screen.dart';
 import 'package:bookit_app/features/board/views/post_board_screen.dart';
 import 'package:bookit_app/features/book/views/library_screen.dart';
 import 'package:bookit_app/features/profile/views/mypage_screen.dart';
+
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
