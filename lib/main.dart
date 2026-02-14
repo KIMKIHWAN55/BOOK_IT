@@ -1,22 +1,30 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // 로그인 확인용
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // 🌟 [필수] Riverpod 패키지 임포트
 import 'firebase_options.dart';
-import 'core/router/app_router.dart'; // 🌟 라우터 불러오기
-import 'core/constants/app_colors.dart'; // 🌟 테마 적용을 위해 추가
+import 'core/router/app_router.dart';
+import 'core/constants/app_colors.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // 1. Firebase 초기화
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  // 2. SharedPreferences 초기화 (온보딩 여부 확인)
   final prefs = await SharedPreferences.getInstance();
   final bool onboardingSeen = prefs.getBool('onboarding_seen') ?? false;
 
-  runApp(BookitApp(onboardingSeen: onboardingSeen));
+  runApp(
+    // 🌟 [핵심] 앱 전체를 ProviderScope로 감싸야 Riverpod이 작동합니다.
+    ProviderScope(
+      child: BookitApp(onboardingSeen: onboardingSeen),
+    ),
+  );
 }
 
 class BookitApp extends StatelessWidget {
@@ -29,10 +37,17 @@ class BookitApp extends StatelessWidget {
     return MaterialApp(
       title: '북잇',
       debugShowCheckedModeBanner: false,
+
+      // 🌟 테마 설정
       theme: ThemeData(
-        fontFamily: 'Pretendard', // 🌟 기본 폰트 설정
-        scaffoldBackgroundColor: AppColors.background, // 🌟 공통 배경색 적용
+        fontFamily: 'Pretendard',
+        scaffoldBackgroundColor: AppColors.background,
         primaryColor: AppColors.primary,
+        // 텍스트 선택 커서 색상 등 세부 설정도 가능
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColors.primary,
+          primary: AppColors.primary,
+        ),
         textButtonTheme: TextButtonThemeData(
           style: TextButton.styleFrom(
             foregroundColor: AppColors.primary,
@@ -40,36 +55,24 @@ class BookitApp extends StatelessWidget {
         ),
       ),
 
-      // 🌟 핵심 1: 첫 시작 경로 설정
-      // onboardingSeen 값에 따라 시작점을 다르게 줍니다.
+      // 🌟 초기 경로 설정 (앱 켤 때 어디로 갈지 결정)
       initialRoute: _getInitialRoute(),
 
-      // 🌟 핵심 2: 중앙 집중식 라우터 연결
-      // 이제 아래 한 줄로 모든 페이지 이동이 관리됩니다.
+      // 🌟 라우터 연결
       onGenerateRoute: AppRouter.generateRoute,
-
-      // 🌟 핵심 3: 로그인 상태 감지 (최상위 빌더)
-      // 앱이 켜진 후 로그인 상태가 변할 때 자동으로 화면을 전환해주고 싶다면
-      // 아래와 같이 StreamBuilder를 활용한 처리가 가능합니다.
-      builder: (context, child) {
-        return StreamBuilder<User?>(
-          stream: FirebaseAuth.instance.authStateChanges(),
-          builder: (context, snapshot) {
-            // 여기에 전역적인 상태 처리(로딩 등)를 추가할 수 있습니다.
-            return child!;
-          },
-        );
-      },
     );
   }
 
-  // 🌟 첫 시작 페이지를 결정하는 로직
+  // 🌟 첫 시작 페이지 결정 로직
+  // (Riverpod을 써도 앱 시작 시점의 단순 분기는 이렇게 함수로 처리해도 깔끔합니다)
   String _getInitialRoute() {
+    // 1. 온보딩을 안 봤으면 -> 온보딩 화면
     if (!onboardingSeen) {
       return AppRouter.intro;
     }
 
-    // 이미 온보딩을 봤다면, 로그인 여부에 따라 분기
+    // 2. 온보딩은 봤는데 로그인을 안 했으면 -> 로그인 화면
+    // 3. 로그인도 되어 있으면 -> 메인 화면
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       return AppRouter.main;
