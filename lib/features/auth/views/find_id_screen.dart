@@ -77,7 +77,6 @@ class _FindIdScreenState extends State<FindIdScreen> {
 
   Widget _buildBodyByStep() {
     if (_controller.currentStep == 1) return _step1Input();
-    if (_controller.currentStep == 2) return _step2Verify();
     return _step3Result();
   }
 
@@ -116,34 +115,7 @@ class _FindIdScreenState extends State<FindIdScreen> {
     );
   }
 
-  // [2단계] 인증 화면
-  Widget _step2Verify() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 44),
-        Text("본인 인증 코드가 귀하에게 전송되었습니다.\n전달 받은 코드를 입력하셔야 합니다.", style: _ptStyle(size: 14, weight: FontWeight.w400, color: AppColors.textSub, height: 1.43)),
-        const SizedBox(height: 12),
-        Row(children: [
-          Text(_phoneController.text, style: _ptStyle(size: 14, weight: FontWeight.w400, color: AppColors.textMain)),
-          Text(" 코드를 보냈습니다.", style: _ptStyle(size: 14, weight: FontWeight.w400, color: AppColors.textSub)),
-        ]),
-        const SizedBox(height: 40),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: List.generate(4, (index) => _buildOtpBox(index)),
-        ),
-        const SizedBox(height: 32),
-        Center(child: TextButton(onPressed: () {}, child: Text("인증 번호 다시 보내기", style: _ptStyle(size: 14, weight: FontWeight.w600, color: AppColors.textMain)))),
-        const Spacer(),
-        PrimaryButton(
-          text: "인증 완료",
-          onPressed: () => _controller.verifyOtp(_otpControllers.map((c) => c.text).join()),
-        ),
-        const SizedBox(height: 24),
-      ],
-    );
-  }
+
 
   // [3단계] 결과 화면
   Widget _step3Result() {

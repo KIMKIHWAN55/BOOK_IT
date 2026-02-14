@@ -4,7 +4,7 @@ import '../services/auth_service.dart';
 class FindIdController extends ChangeNotifier {
   final AuthService _authService = AuthService();
 
-  int _currentStep = 1; // 1: 입력, 2: 인증, 3: 결과
+  int _currentStep = 1; // 1: 입력, 3: 결과 (2단계 삭제)
   int get currentStep => _currentStep;
 
   bool _isLoading = false;
@@ -21,9 +21,9 @@ class FindIdController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // 1단계 -> 2단계: DB에서 아이디 검색 및 인증번호 발송 처리
+  // 1단계 -> 3단계: DB에서 아이디 검색 후 바로 결과 표시
   Future<String?> requestSearchId(String name, String phone) async {
-    if (name.isEmpty || phone.isEmpty) return "폰번호를 입력해주세요.";
+    if (name.isEmpty || phone.isEmpty) return "이름과 휴대폰 번호를 입력해주세요.";
 
     _setLoading(true);
     try {
@@ -31,7 +31,7 @@ class FindIdController extends ChangeNotifier {
       if (resultId != null) {
         _foundId = resultId;
         _userName = name;
-        _currentStep = 2; // 찾았으면 2단계(인증)로 이동
+        _currentStep = 3; // 🌟 2단계를 건너뛰고 바로 3단계(결과)로 이동!
         return null; // 성공
       } else {
         return "일치하는 정보가 없습니다.";
@@ -41,13 +41,6 @@ class FindIdController extends ChangeNotifier {
     } finally {
       _setLoading(false);
     }
-  }
-
-  // 2단계 -> 3단계: 인증번호 확인 로직 (현재는 UI 흐름상 바로 3단계로 넘김)
-  void verifyOtp(String code) {
-    // TODO: 실제 인증번호 검증 로직 추가 필요
-    _currentStep = 3;
-    notifyListeners();
   }
 
   // 다시 처음으로 되돌리기

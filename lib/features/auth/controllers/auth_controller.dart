@@ -39,18 +39,4 @@ class AuthController extends ChangeNotifier {
       _setLoading(false);
     }
   }
-
-  // 3. 이메일 인증 코드 발송 요청 (회원가입 단계에서 사용)
-  Future<String?> requestVerificationCode(String email) async {
-    _setLoading(true);
-    try {
-      // 🌟 실제 통신 로직은 서비스에 있는 함수를 호출합니다.
-      await _authService.sendEmailVerificationCode(email);
-      return null;
-    } catch (e) {
-      return '인증 코드 발송 실패: $e';
-    } finally {
-      _setLoading(false);
-    }
-  }
 }
