@@ -1,61 +1,50 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart'; // 날짜 포맷용 (pubspec.yaml에 intl 패키지 필요)
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class PostDetailScreen extends StatefulWidget {
-  final String postId;
-  final Map<String, dynamic> postData;
+import '../models/post_model.dart';
+import '../controllers/board_controller.dart';
+import '../../book/views/book_detail_screen.dart';
+
+class PostDetailScreen extends ConsumerStatefulWidget {
+  final PostModel post;
 
   const PostDetailScreen({
     super.key,
-    required this.postId,
-    required this.postData,
+    required this.post,
   });
 
   @override
-  State<PostDetailScreen> createState() => _PostDetailScreenState();
+  ConsumerState<PostDetailScreen> createState() => _PostDetailScreenState();
 }
 
-class _PostDetailScreenState extends State<PostDetailScreen> {
-  final User? _currentUser = FirebaseAuth.instance.currentUser;
+class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   final TextEditingController _commentController = TextEditingController();
-  bool _isLiked = false;
-  int _likeCount = 0;
+  final ScrollController _scrollController = ScrollController();
+
+  late bool _isLiked;
+  late int _likeCount;
 
   @override
   void initState() {
     super.initState();
-    _likeCount = widget.postData['likeCount'] ?? 0;
-    _checkIfLiked();
+    final user = FirebaseAuth.instance.currentUser;
+    _isLiked = user != null && widget.post.likedBy.contains(user.uid);
+    _likeCount = widget.post.likeCount;
   }
 
-  // 1. 내가 이 글을 좋아요 했는지 확인
-  Future<void> _checkIfLiked() async {
-    if (_currentUser == null) return;
-    final doc = await FirebaseFirestore.instance
-        .collection('posts')
-        .doc(widget.postId)
-        .collection('likes')
-        .doc(_currentUser!.uid)
-        .get();
-
-    if (mounted) {
-      setState(() => _isLiked = doc.exists);
-    }
+  @override
+  void dispose() {
+    _commentController.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
-  // 2. 좋아요 토글 기능 (핵심 로직)
-  Future<void> _toggleLike() async {
-    if (_currentUser == null) return;
-
-    final postRef = FirebaseFirestore.instance.collection('posts').doc(widget.postId);
-    final likeRef = postRef.collection('likes').doc(_currentUser!.uid);
-    final myLikeRef = FirebaseFirestore.instance
-        .collection('users')
-        .doc(_currentUser!.uid)
-        .collection('liked_feeds')
-        .doc(widget.postId);
+  // 좋아요 처리 (Optimistic Update 적용)
+  Future<void> _handleLike() async {
+    final controller = ref.read(boardControllerProvider);
 
     setState(() {
       _isLiked = !_isLiked;
@@ -63,100 +52,100 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     });
 
     try {
-      if (_isLiked) {
-        // 좋아요 추가
-        await likeRef.set({'likedAt': Timestamp.now()});
-        await postRef.update({'likeCount': FieldValue.increment(1)});
-
-        // ★ 내 정보 -> 좋아요한 피드에 저장 (마이페이지 연동용)
-        await myLikeRef.set({
-          'content': widget.postData['content'],
-          'bookTitle': widget.postData['bookTitle'] ?? '제목 없음', // 책 제목 필드명 확인 필요
-          'likedAt': Timestamp.now(),
-        });
-      } else {
-        // 좋아요 취소
-        await likeRef.delete();
-        await postRef.update({'likeCount': FieldValue.increment(-1)});
-
-        // ★ 내 정보에서 삭제
-        await myLikeRef.delete();
-      }
+      await controller.toggleLike(widget.post);
     } catch (e) {
-      // 에러 발생 시 롤백
+      // 실패 시 롤백
       setState(() {
         _isLiked = !_isLiked;
         _likeCount += _isLiked ? 1 : -1;
       });
-      print("좋아요 에러: $e");
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("오류가 발생했습니다.")));
     }
   }
 
-  // 3. 댓글 작성 기능
-  Future<void> _addComment() async {
-    if (_commentController.text.trim().isEmpty || _currentUser == null) return;
+  // 댓글 등록 처리
+  Future<void> _handleSubmitComment() async {
+    if (_commentController.text.trim().isEmpty) return;
 
-    final content = _commentController.text.trim();
-    _commentController.clear();
+    try {
+      await ref.read(boardControllerProvider).addComment(widget.post.id, _commentController.text.trim());
+      _commentController.clear();
+      FocusScope.of(context).unfocus();
 
-    // 사용자 닉네임 가져오기 (댓글에 표시하기 위함)
-    String nickname = '익명';
-    final userDoc = await FirebaseFirestore.instance.collection('users').doc(_currentUser!.uid).get();
-    if (userDoc.exists) {
-      nickname = userDoc.data()?['nickname'] ?? '익명';
+      // 스크롤 아래로 이동
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("댓글 등록 실패")));
     }
+  }
 
-    await FirebaseFirestore.instance
-        .collection('posts')
-        .doc(widget.postId)
-        .collection('comments')
-        .add({
-      'userId': _currentUser!.uid,
-      'nickname': nickname,
-      'content': content,
-      'createdAt': Timestamp.now(),
-    });
+  // 책 상세 페이지 이동
+  Future<void> _navigateToBookDetail() async {
+    if (widget.post.bookId == null) return;
 
-    // 게시글의 댓글 수 증가 (선택 사항)
-    await FirebaseFirestore.instance.collection('posts').doc(widget.postId).update({
-      'commentCount': FieldValue.increment(1),
-    });
+    try {
+      final book = await ref.read(boardControllerProvider).getBookDetail(widget.post.bookId!);
+
+      if (mounted) {
+        if (book != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => BookDetailScreen(book: book)),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("책 정보를 찾을 수 없습니다.")));
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("오류가 발생했습니다.")));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // 댓글 스트림 구독
+    final commentsAsync = ref.watch(commentsProvider(widget.post.id));
+
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text("게시글 상세", style: TextStyle(color: Colors.black)),
+        title: const Text("게시글 상세", style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
       ),
       body: Column(
         children: [
-          // --- 게시글 본문 영역 ---
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              controller: _scrollController,
+              padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 작성자 정보 & 날짜
+                  // 1. 작성자 정보
                   Row(
                     children: [
                       const CircleAvatar(
-                        backgroundColor: Colors.grey,
+                        backgroundColor: Color(0xFFDBDBDB),
                         child: Icon(Icons.person, color: Colors.white),
                       ),
                       const SizedBox(width: 10),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(widget.postData['nickname'] ?? '알 수 없음',
-                              style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Text(widget.post.nickname, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                           Text(
-                            _formatDate(widget.postData['createdAt']),
-                            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                            _formatDate(widget.post.createdAt),
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF767676)),
                           ),
                         ],
                       ),
@@ -164,92 +153,187 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // 내용
-                  Text(widget.postData['content'] ?? '', style: const TextStyle(fontSize: 16)),
+                  // 2. 게시글 본문
+                  Text(widget.post.content, style: const TextStyle(fontSize: 16, height: 1.5, color: Color(0xFF222222))),
+
+                  const SizedBox(height: 24),
+
+                  // 3. 책 정보 카드 (존재할 경우에만 표시)
+                  if (widget.post.bookId != null)
+                    GestureDetector(
+                      onTap: _navigateToBookDetail,
+                      child: Container(
+                        height: 100,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8F9FA),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFEEEEEE)),
+                        ),
+                        child: Row(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: Image.network(
+                                widget.post.bookImageUrl ?? '',
+                                width: 55,
+                                height: 80,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(width: 55, height: 80, color: Colors.grey[300]),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    widget.post.bookTitle ?? '제목 없음',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    widget.post.bookAuthor ?? '저자 미상',
+                                    style: const TextStyle(fontSize: 13, color: Color(0xFF767676)),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right, color: Color(0xFF999999)),
+                          ],
+                        ),
+                      ),
+                    ),
 
                   const SizedBox(height: 30),
 
-                  // 좋아요 버튼 영역
+                  // 4. 좋아요 버튼
                   Row(
                     children: [
-                      IconButton(
-                        onPressed: _toggleLike,
-                        icon: Icon(
+                      GestureDetector(
+                        onTap: _handleLike,
+                        child: Icon(
                           _isLiked ? Icons.favorite : Icons.favorite_border,
-                          color: _isLiked ? Colors.red : Colors.grey,
+                          color: _isLiked ? const Color(0xFFD45858) : const Color(0xFF999999),
+                          size: 28,
                         ),
                       ),
-                      Text("$_likeCount"),
+                      const SizedBox(width: 8),
+                      Text("좋아요 $_likeCount", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                     ],
                   ),
-                  const Divider(),
-                  const Text("댓글", style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 20),
+                  const Divider(thickness: 1, color: Color(0xFFF1F1F5)),
+                  const SizedBox(height: 20),
 
-                  // --- 댓글 리스트 (StreamBuilder) ---
-                  StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('posts')
-                        .doc(widget.postId)
-                        .collection('comments')
-                        .orderBy('createdAt', descending: false)
-                        .snapshots(),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                  // 5. 댓글 목록
+                  const Text("댓글", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
 
-                      final comments = snapshot.data!.docs;
-                      if (comments.isEmpty) return const Text("첫 댓글을 남겨보세요!", style: TextStyle(color: Colors.grey));
-
-                      return ListView.builder(
-                        shrinkWrap: true, // ScrollView 안에 ListView 넣을 때 필수
-                        physics: const NeverScrollableScrollPhysics(), // 스크롤은 바깥 SingleChildScrollView가 담당
-                        itemCount: comments.length,
+                  commentsAsync.when(
+                    data: (docs) {
+                      if (docs.isEmpty) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 20),
+                          child: Center(child: Text("아직 댓글이 없습니다. 첫 댓글을 남겨보세요!", style: TextStyle(color: Color(0xFF999999)))),
+                        );
+                      }
+                      return ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: docs.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 16),
                         itemBuilder: (context, index) {
-                          var c = comments[index];
-                          return ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: const CircleAvatar(radius: 15, child: Icon(Icons.person, size: 15)),
-                            title: Text(c['nickname'], style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                            subtitle: Text(c['content']),
-                            trailing: Text(
-                              _formatDate(c['createdAt']),
-                              style: const TextStyle(fontSize: 10, color: Colors.grey),
-                            ),
-                          );
+                          final data = docs[index].data() as Map<String, dynamic>;
+                          return _buildCommentItem(data);
                         },
                       );
                     },
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (err, stack) => const Text("댓글을 불러올 수 없습니다."),
                   ),
                 ],
               ),
             ),
           ),
 
-          // --- 댓글 입력창 (하단 고정) ---
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: Colors.grey[300]!)),
-            ),
-            child: SafeArea(
-              child: Row(
+          // 6. 하단 댓글 입력창
+          _buildBottomInput(),
+        ],
+      ),
+    );
+  }
+
+  // 헬퍼: 댓글 아이템 위젯
+  Widget _buildCommentItem(Map<String, dynamic> data) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const CircleAvatar(radius: 16, backgroundColor: Color(0xFFF1F1F5), child: Icon(Icons.person, size: 18, color: Colors.grey)),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _commentController,
-                      decoration: const InputDecoration(
-                        hintText: "댓글을 입력하세요...",
-                        border: InputBorder.none,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: _addComment,
-                    icon: const Icon(Icons.send, color: Color(0xFFD45858)),
-                  ),
+                  Text(data['nickname'] ?? '익명', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text(_formatDate((data['createdAt'] as Timestamp?)?.toDate()), style: const TextStyle(fontSize: 12, color: Color(0xFF999999))),
                 ],
               ),
+              const SizedBox(height: 4),
+              Text(data['content'] ?? '', style: const TextStyle(fontSize: 14, color: Color(0xFF333333))),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 헬퍼: 하단 입력창 위젯
+  Widget _buildBottomInput() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F6F8),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: TextField(
+                controller: _commentController,
+                decoration: const InputDecoration(
+                  hintText: "댓글을 입력하세요...",
+                  border: InputBorder.none,
+                  hintStyle: TextStyle(color: Color(0xFF999999), fontSize: 14),
+                ),
+                style: const TextStyle(fontSize: 14),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          GestureDetector(
+            onTap: _handleSubmitComment,
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFFD45858),
+              ),
+              child: const Icon(Icons.send, color: Colors.white, size: 20),
             ),
           ),
         ],
@@ -257,11 +341,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     );
   }
 
-  String _formatDate(dynamic timestamp) {
-    if (timestamp == null) return '';
-    if (timestamp is Timestamp) {
-      return DateFormat('MM/dd HH:mm').format(timestamp.toDate());
-    }
-    return '';
+  String _formatDate(DateTime? date) {
+    if (date == null) return '';
+    return DateFormat('MM/dd HH:mm').format(date);
   }
 }
