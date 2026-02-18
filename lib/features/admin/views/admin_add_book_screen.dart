@@ -1,39 +1,37 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../book/models/book_model.dart';
+import '../controllers/admin_controller.dart';
 
-class AdminAddBookScreen extends StatefulWidget {
+class AdminAddBookScreen extends ConsumerStatefulWidget {
   final BookModel? bookToEdit;
 
   const AdminAddBookScreen({super.key, this.bookToEdit});
 
   @override
-  State<AdminAddBookScreen> createState() => _AdminAddBookScreenState();
+  ConsumerState<AdminAddBookScreen> createState() => _AdminAddBookScreenState();
 }
 
-class _AdminAddBookScreenState extends State<AdminAddBookScreen> {
+class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _authorController = TextEditingController();
-  final TextEditingController _rankController = TextEditingController();
-  // final TextEditingController _categoryController = TextEditingController(); // ❌ 기존 제거
-  final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _priceController = TextEditingController();
-  final TextEditingController _discountController = TextEditingController();
-  final TextEditingController _tagsController = TextEditingController();
+  // 컨트롤러들은 UI 요소이므로 그대로 둡니다.
+  late TextEditingController _titleController;
+  late TextEditingController _authorController;
+  late TextEditingController _rankController;
+  late TextEditingController _descriptionController;
+  late TextEditingController _priceController;
+  late TextEditingController _discountController;
+  late TextEditingController _tagsController;
 
   File? _selectedImage;
   final ImagePicker _picker = ImagePicker();
-  bool _isLoading = false;
 
-  // 🌟 [추가] 선택된 카테고리 저장 변수
+  // 선택된 카테고리
   String _selectedCategory = '';
 
-  // 🌟 [추가] 카테고리 목록 (CategoryScreen과 통일)
   final List<String> _categoryList = [
     "로맨스", "무협", "추리", "공포/미스터리", "SF", "판타지",
     "금융/투자", "여행", "인간관계", "건강", "교재/수험서", "성공",
@@ -45,103 +43,103 @@ class _AdminAddBookScreenState extends State<AdminAddBookScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.bookToEdit != null) {
-      final book = widget.bookToEdit!;
-      _titleController.text = book.title;
-      _authorController.text = book.author;
-      _rankController.text = book.rank;
-      _selectedCategory = book.category; // 🌟 기존 카테고리 불러오기
-      _descriptionController.text = book.description;
-      _priceController.text = book.price.toString();
-      _discountController.text = book.discountRate?.toString() ?? '';
-      _tagsController.text = book.tags.join(', ');
+    final book = widget.bookToEdit;
+
+    _titleController = TextEditingController(text: book?.title ?? '');
+    _authorController = TextEditingController(text: book?.author ?? '');
+    _rankController = TextEditingController(text: book?.rank ?? '');
+    _descriptionController = TextEditingController(text: book?.description ?? '');
+    _priceController = TextEditingController(text: book?.price.toString() ?? '');
+    _discountController = TextEditingController(text: book?.discountRate?.toString() ?? '');
+    _tagsController = TextEditingController(text: book?.tags.join(', ') ?? '');
+
+    if (book != null) {
+      _selectedCategory = book.category;
     }
   }
 
-  // ... (이미지 관련 함수 _pickImage, _uploadImageToStorage는 기존과 동일)
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _authorController.dispose();
+    _rankController.dispose();
+    _descriptionController.dispose();
+    _priceController.dispose();
+    _discountController.dispose();
+    _tagsController.dispose();
+    super.dispose();
+  }
+
   Future<void> _pickImage() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) setState(() => _selectedImage = File(image.path));
   }
 
-  Future<String> _uploadImageToStorage() async {
-    if (_selectedImage == null) return '';
-    try {
-      String fileName = '${DateTime.now().millisecondsSinceEpoch}_book_cover.jpg';
-      Reference ref = FirebaseStorage.instance.ref().child('book_covers/$fileName');
-      await ref.putFile(_selectedImage!);
-      return await ref.getDownloadURL();
-    } catch (e) { return ''; }
-  }
-  // ...
-
-  Future<void> _registerBook() async {
+  Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // 🌟 카테고리 선택 검사
+    // 카테고리 검사
     if (_selectedCategory.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('카테고리를 선택해주세요!')));
       return;
     }
 
+    // 이미지 검사 (새 등록일 때)
     if (widget.bookToEdit == null && _selectedImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('책 표지 이미지를 등록해주세요! 📷')));
       return;
     }
 
-    setState(() => _isLoading = true);
+    // 태그 리스트 생성 로직
+    List<String> tagsList = _tagsController.text.isNotEmpty
+        ? _tagsController.text.split(',').map((e) => e.trim()).toList()
+        : [];
 
-    try {
-      String downloadUrl;
-      if (_selectedImage != null) {
-        downloadUrl = await _uploadImageToStorage();
-      } else {
-        downloadUrl = widget.bookToEdit!.imageUrl;
-      }
+    if (!tagsList.contains(_selectedCategory)) {
+      tagsList.add(_selectedCategory);
+    }
 
-      // 🌟 [핵심 로직] 기존 태그 리스트에 '선택한 카테고리'도 자동으로 추가
-      List<String> tagsList = _tagsController.text.isNotEmpty
-          ? _tagsController.text.split(',').map((e) => e.trim()).toList()
-          : [];
+    // 모델 생성 (이미지 URL은 Controller에서 처리)
+    final tempBook = BookModel(
+      id: widget.bookToEdit?.id ?? '',
+      title: _titleController.text,
+      author: _authorController.text,
+      imageUrl: widget.bookToEdit?.imageUrl ?? '', // 기존 URL 혹은 빈 값
+      rank: _rankController.text,
+      category: _selectedCategory,
+      rating: widget.bookToEdit?.rating ?? '0.0',
+      reviewCount: widget.bookToEdit?.reviewCount ?? '0',
+      description: _descriptionController.text,
+      price: int.tryParse(_priceController.text) ?? 0,
+      discountRate: int.tryParse(_discountController.text),
+      tags: tagsList,
+    );
 
-      // 카테고리를 태그에 없으면 추가 (중복 방지)
-      if (!tagsList.contains(_selectedCategory)) {
-        tagsList.add(_selectedCategory);
-      }
+    final isEditing = widget.bookToEdit != null;
 
-      final newBook = BookModel(
-        id: widget.bookToEdit?.id ?? '',
-        title: _titleController.text,
-        author: _authorController.text,
-        imageUrl: downloadUrl,
-        rank: _rankController.text,
-        category: _selectedCategory, // 🌟 선택한 카테고리 저장
-        rating: widget.bookToEdit?.rating ?? '0.0',
-        reviewCount: widget.bookToEdit?.reviewCount ?? '0',
-        description: _descriptionController.text,
-        price: int.tryParse(_priceController.text) ?? 0,
-        discountRate: int.tryParse(_discountController.text),
-        tags: tagsList, // 🌟 카테고리가 포함된 태그 리스트 저장
+    // Riverpod Controller 호출
+    final success = await ref.read(adminControllerProvider.notifier).registerBook(
+      book: tempBook,
+      newImage: _selectedImage,
+      isEditing: isEditing,
+    );
+
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(isEditing ? '책 수정 완료! ✏️' : '책 등록 성공! 📚')),
       );
-
-      if (widget.bookToEdit == null) {
-        await FirebaseFirestore.instance.collection('books').add(newBook.toMap());
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('책 등록 성공! 📚')));
-      } else {
-        await FirebaseFirestore.instance.collection('books').doc(widget.bookToEdit!.id).update(newBook.toMap());
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('책 수정 완료! ✏️')));
+      Navigator.pop(context);
+    } else if (mounted) {
+      // 에러 처리는 Controller state listener 혹은 여기서 간단히 처리
+      final errorState = ref.read(adminControllerProvider);
+      if (errorState.hasError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('에러 발생: ${errorState.error}')),
+        );
       }
-
-      if (mounted) Navigator.pop(context);
-
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('에러 발생: $e')));
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // 🌟 [추가] 카테고리 선택 바텀 시트
   void _showCategorySelector() {
     showModalBottomSheet(
       context: context,
@@ -178,7 +176,10 @@ class _AdminAddBookScreenState extends State<AdminAddBookScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ... (기존 build 상단 코드는 동일)
+    // Riverpod 상태 구독 (로딩 체크용)
+    final adminState = ref.watch(adminControllerProvider);
+    final isLoading = adminState.isLoading;
+
     final isEditing = widget.bookToEdit != null;
     final appBarTitle = isEditing ? "책 수정하기 (관리자)" : "책 등록하기 (관리자)";
     final buttonText = isEditing ? "책 수정 완료" : "책 등록 완료";
@@ -194,7 +195,7 @@ class _AdminAddBookScreenState extends State<AdminAddBookScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ... (이미지 선택 위젯, 제목, 작가 필드는 기존 코드 유지)
+                  // 이미지 선택 영역
                   GestureDetector(
                     onTap: _pickImage,
                     child: Container(
@@ -214,25 +215,25 @@ class _AdminAddBookScreenState extends State<AdminAddBookScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
+
                   _buildTextField(_titleController, '책 제목', '예: Paradox'),
                   _buildTextField(_authorController, '작가', '예: 호베루투 카를로스'),
 
-                  // 🌟 [수정] 순위와 카테고리 선택 UI
+                  // 순위 및 카테고리 선택 UI
                   Row(
                     children: [
                       Expanded(child: _buildTextField(_rankController, '순위', '예: 1', isNumber: true)),
                       const SizedBox(width: 16),
-                      // 👇 CSS 스타일 적용된 카테고리 선택 버튼
                       Expanded(
                         child: GestureDetector(
                           onTap: _showCategorySelector,
                           child: Container(
-                            height: 56, // TextField 높이와 얼추 맞춤
+                            height: 56,
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              border: Border.all(color: const Color(0xFFC2C2C2)), // CSS: border color
-                              borderRadius: BorderRadius.circular(10), // CSS: border radius
+                              border: Border.all(color: const Color(0xFFC2C2C2)),
+                              borderRadius: BorderRadius.circular(10),
                             ),
                             alignment: Alignment.centerLeft,
                             child: Text(
@@ -250,10 +251,10 @@ class _AdminAddBookScreenState extends State<AdminAddBookScreen> {
                     ],
                   ),
 
-                  // ... (나머지 필드들 기존과 동일하게 유지)
                   const Divider(height: 40, thickness: 2),
                   const Text("📖 상세 페이지 정보", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 10),
+
                   Row(
                     children: [
                       Expanded(child: _buildTextField(_priceController, '정가 (원)', '예: 13000', isNumber: true)),
@@ -274,7 +275,7 @@ class _AdminAddBookScreenState extends State<AdminAddBookScreen> {
                   SizedBox(
                     width: double.infinity, height: 50,
                     child: ElevatedButton(
-                      onPressed: _isLoading ? null : _registerBook,
+                      onPressed: isLoading ? null : _submitForm,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: isEditing ? Colors.orangeAccent : Colors.blueAccent,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -287,13 +288,16 @@ class _AdminAddBookScreenState extends State<AdminAddBookScreen> {
               ),
             ),
           ),
-          if (_isLoading) Container(color: Colors.black.withOpacity(0.5), child: const Center(child: CircularProgressIndicator(color: Colors.white))),
+          if (isLoading)
+            Container(
+                color: Colors.black.withOpacity(0.5),
+                child: const Center(child: CircularProgressIndicator(color: Colors.white))
+            ),
         ],
       ),
     );
   }
 
-  // _buildTextField 함수는 기존 유지
   Widget _buildTextField(TextEditingController controller, String label, String hint, {bool isNumber = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),

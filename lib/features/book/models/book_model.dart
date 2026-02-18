@@ -75,4 +75,35 @@ class BookModel {
     if (discountRate == null || discountRate == 0) return price;
     return (price * (100 - discountRate!) / 100).round();
   }
+
+  // 🌟 [추가됨] 리버팟 상태 관리 및 데이터 수정 시 필수 (불변 객체 패턴)
+  BookModel copyWith({
+    String? id,
+    String? rank,
+    String? title,
+    String? author,
+    String? imageUrl,
+    String? rating,
+    String? reviewCount,
+    String? category,
+    String? description,
+    int? price,
+    int? discountRate,
+    List<String>? tags,
+  }) {
+    return BookModel(
+      id: id ?? this.id,
+      rank: rank ?? this.rank,
+      title: title ?? this.title,
+      author: author ?? this.author,
+      imageUrl: imageUrl ?? this.imageUrl,
+      rating: rating ?? this.rating,
+      reviewCount: reviewCount ?? this.reviewCount,
+      category: category ?? this.category,
+      description: description ?? this.description,
+      price: price ?? this.price,
+      discountRate: discountRate ?? this.discountRate,
+      tags: tags ?? this.tags,
+    );
+  }
 }
