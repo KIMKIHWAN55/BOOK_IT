@@ -48,10 +48,15 @@ class PostModel {
       bookTitle: data['bookTitle'],
       bookAuthor: data['bookAuthor'],
       bookImageUrl: data['bookImageUrl'],
-      bookRating: (data['bookRating'] ?? 0.0).toDouble(),
-      bookReviewCount: data['bookReviewCount'] ?? 0,
-      likeCount: data['likeCount'] ?? 0,
-      commentCount: data['commentCount'] ?? 0,
+
+      // 🌟 [수정됨] 글자(String)로 들어오든 숫자(int/double)로 들어오든 안전하게 숫자로 변환
+      bookRating: double.tryParse(data['bookRating']?.toString() ?? '0') ?? 0.0,
+
+      // 🌟 [추가 팁] 리뷰 카운트나 다른 숫자들도 비슷하게 처리해주면 훨씬 안전합니다.
+      bookReviewCount: int.tryParse(data['bookReviewCount']?.toString() ?? '0') ?? 0,
+      likeCount: int.tryParse(data['likeCount']?.toString() ?? '0') ?? 0,
+      commentCount: int.tryParse(data['commentCount']?.toString() ?? '0') ?? 0,
+
       likedBy: List<String>.from(data['likedBy'] ?? []),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );

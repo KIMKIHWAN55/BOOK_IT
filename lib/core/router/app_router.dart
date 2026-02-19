@@ -45,6 +45,15 @@ import '../../features/profile/views/liked_books_screen.dart';
 import '../../features/admin/views/admin_add_book_screen.dart';
 import '../../features/admin/views/admin_book_list_screen.dart';
 
+// -----------------------------------------------------------------------------
+// 🌟 7. Board (게시판 및 글쓰기) 화면 [추가됨]
+// -----------------------------------------------------------------------------
+import '../../features/board/models/post_model.dart';
+import '../../features/board/views/post_board_screen.dart';
+import '../../features/board/views/post_detail_screen.dart';
+import '../../features/board/views/write_post_screen.dart';
+import '../../features/board/views/write_review_screen.dart';
+
 class AppRouter {
   // ===========================================================================
   // 1. 라우트 이름(경로) 상수화 (오타 방지용)
@@ -74,17 +83,22 @@ class AppRouter {
   // Profile
   static const String profileSetup = '/profile_setup';
   static const String profileEdit = '/profile_edit';
-  static const String settings = '/settings'; // 🔥 에러 났던 부분 (상수명)
+  static const String settings = '/settings';
   static const String likedBooks = '/liked_books';
 
   // Admin
   static const String adminAddBook = '/admin_add_book';
   static const String adminBookList = '/admin_book_list';
 
+  // 🌟 Board [추가됨]
+  static const String postBoard = '/post_board';
+  static const String postDetail = '/post_detail';
+  static const String writePost = '/write_post';
+  static const String writeReview = '/write_review';
+
   // ===========================================================================
   // 2. 경로에 따라 화면을 매칭해주는 함수
   // ===========================================================================
-  // 🌟 해결: 매개변수 이름을 settings -> routeSettings 로 변경
   static Route<dynamic> generateRoute(RouteSettings routeSettings) {
     switch (routeSettings.name) {
     // -----------------------------------------------------
@@ -155,7 +169,7 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const ProfileSetupScreen());
       case profileEdit:
         return MaterialPageRoute(builder: (_) => const ProfileEditScreen());
-      case settings: // 🔥 이제 변수명 충돌 없이 상수로 정상 인식됩니다.
+      case settings:
         return MaterialPageRoute(builder: (_) => const SettingsScreen());
       case likedBooks:
         return MaterialPageRoute(builder: (_) => const LikedBooksScreen());
@@ -167,6 +181,21 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const AdminAddBookScreen());
       case adminBookList:
         return MaterialPageRoute(builder: (_) => const AdminBookListScreen());
+
+    // -----------------------------------------------------
+    // 🌟 [게시판 및 글쓰기 관련 추가]
+    // -----------------------------------------------------
+      case postBoard:
+        return MaterialPageRoute(builder: (_) => const PostBoardScreen());
+      case writePost:
+        return MaterialPageRoute(builder: (_) => const WritePostScreen());
+      case writeReview:
+      // 🌟 화면 이동 시 전달한 book 데이터를 받아서 리뷰 화면으로 넘겨줌
+        final book = routeSettings.arguments as BookModel;
+        return MaterialPageRoute(builder: (_) => WriteReviewScreen(book: book));
+      case postDetail:
+        final post = routeSettings.arguments as PostModel; // 게시글 객체 전달받기
+        return MaterialPageRoute(builder: (_) => PostDetailScreen(post: post));
 
     // -----------------------------------------------------
     // [예외 처리] 등록되지 않은 경로

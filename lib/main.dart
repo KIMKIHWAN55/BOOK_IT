@@ -23,11 +23,14 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // 🔥 AppCheck 활성화 (Android + iOS 모두 지원하도록 보강)
+// 🚨 [수정] 개발(테스트) 중에는 App Check가 에뮬레이터에서 작동하지 않으므로 잠시 꺼둡니다!
+  // (나중에 앱 출시할 때 주석을 해제하시면 됩니다)
+  /*
   await FirebaseAppCheck.instance.activate(
     androidProvider: AndroidProvider.playIntegrity,
-    appleProvider: AppleProvider.deviceCheck, // iOS 지원 추가
+    appleProvider: AppleProvider.deviceCheck,
   );
+  */
 
   // 온보딩(인트로) 확인
   final prefs = await SharedPreferences.getInstance();

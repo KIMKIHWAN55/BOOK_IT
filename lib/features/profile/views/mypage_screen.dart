@@ -9,6 +9,8 @@ import '../controllers/profile_controller.dart';
 import 'profile_edit_screen.dart';
 import 'settings_screen.dart';
 import 'liked_books_screen.dart';
+import '../../board/controllers/board_controller.dart';
+import 'package:bookit_app/shared/widgets/post_card.dart';
 
 class MyPageScreen extends ConsumerStatefulWidget {
   const MyPageScreen({super.key});
@@ -386,7 +388,30 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> with SingleTickerPr
   }
 
   Widget _buildLikedFeedsList() {
-    return const Center(child: Text("좋아요한 피드 목록 준비 중", style: TextStyle(color: Colors.grey)));
+    final likedPostsAsync = ref.watch(likedPostsProvider);
+
+    return likedPostsAsync.when(
+      data: (posts) {
+        if (posts.isEmpty) {
+          return const Center(
+            child: Text("좋아요한 피드가 없습니다.", style: TextStyle(color: Colors.grey)),
+          );
+        }
+
+        return ListView.separated(
+          // 카드 주변 간격 여백 설정
+          padding: const EdgeInsets.only(top: 16, bottom: 20, left: 16, right: 16),
+          itemCount: posts.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 24),
+          itemBuilder: (context, index) {
+            // 게시판에서 쓰던 디자인(PostCard) 그대로 렌더링
+            return PostCard(post: posts[index]);
+          },
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, st) => Center(child: Text("오류가 발생했습니다.\n$e")),
+    );
   }
 
   Widget _buildLogoutButton() {

@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../book/models/book_model.dart';
 
-// 🌟 [1] 상태 클래스 정의 (데이터를 담는 그릇)
+// 🌟 [1] 상태 클래스 (기존 유지)
 class HomeState {
   final bool isLoading;
   final String userName;
@@ -17,7 +17,6 @@ class HomeState {
     this.bestSellerBooks = const [],
   });
 
-  // 상태 복사본을 만드는 유틸리티 (데이터 불변성 유지)
   HomeState copyWith({
     bool? isLoading,
     String? userName,
@@ -33,72 +32,80 @@ class HomeState {
   }
 }
 
-// 🌟 [2] Notifier 정의 (ChangeNotifier 대신 사용)
+// 🌟 [2] Notifier: 로직 완벽 최적화
 class HomeNotifier extends Notifier<HomeState> {
   @override
   HomeState build() {
-    // 초기 상태 반환 및 데이터 로딩 시작
-    fetchAllData();
+    // 💡 해결 1: build 과정이 완전히 끝난 직후에 데이터를 불러오도록 예약(Microtask)
+    Future.microtask(() => fetchAllData());
+
+    // 처음엔 무조건 로딩 상태로 반환
     return HomeState(isLoading: true);
   }
 
   Future<void> fetchAllData() async {
-    // 상태 업데이트: 로딩 시작
-    state = state.copyWith(isLoading: true);
-
     try {
-      await Future.wait([
+      // 💡 해결 2: 각 함수에서 상태를 직접 변경하지 않고, 데이터만 반환받아 한 번에 모음
+      final results = await Future.wait([
         _fetchUserData(),
         _fetchRecommendedBooks(),
         _fetchBestSellerBooks(),
       ]);
-    } finally {
-      // 상태 업데이트: 로딩 끝 (데이터는 아래 함수들에서 이미 채워짐)
+
+      // 모든 데이터 로드가 완료되면 한 번에 안전하게 상태 업데이트! (덮어쓰기 방지)
+      state = state.copyWith(
+        userName: results[0] as String,
+        recommendedBooks: results[1] as List<BookModel>,
+        bestSellerBooks: results[2] as List<BookModel>,
+        isLoading: false, // 로딩 끝!
+      );
+
+    } catch (e) {
+      // 에러가 났을 경우 콘솔에 출력하고 무한 로딩 해제
+      print("🚨 홈 화면 데이터 로드 에러: $e");
       state = state.copyWith(isLoading: false);
     }
   }
 
-  Future<void> _fetchUserData() async {
+  // 데이터만 리턴하도록 수정된 함수들
+  Future<String> _fetchUserData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      final name = doc.data()?['name'] ?? "사용자";
-      state = state.copyWith(userName: name);
+      return doc.data()?['name'] ?? "사용자";
     }
+    return "사용자";
   }
 
-  Future<void> _fetchRecommendedBooks() async {
+  Future<List<BookModel>> _fetchRecommendedBooks() async {
     final snapshot = await FirebaseFirestore.instance
         .collection('books')
         .where('category', isEqualTo: 'recommend')
         .get();
-    final books = snapshot.docs.map((doc) => BookModel.fromFirestore(doc)).toList();
-    state = state.copyWith(recommendedBooks: books);
+    return snapshot.docs.map((doc) => BookModel.fromFirestore(doc)).toList();
   }
 
-  Future<void> _fetchBestSellerBooks() async {
+  Future<List<BookModel>> _fetchBestSellerBooks() async {
     final snapshot = await FirebaseFirestore.instance
         .collection('books')
-        .orderBy('rank')
+        .orderBy('rank') // 여기서 권한이나 인덱스 에러가 나면 try-catch가 잡아냅니다.
         .get();
 
-    final books = snapshot.docs
+    return snapshot.docs
         .map((doc) => BookModel.fromFirestore(doc))
         .where((book) {
       int? r = int.tryParse(book.rank);
       return r != null && r >= 1 && r <= 9;
-    })
-        .toList();
-    state = state.copyWith(bestSellerBooks: books);
+    }).toList();
   }
 }
 
-// 🌟 [3] Provider 생성 (이 변수를 통해 어디서든 접근 가능)
+// 🌟 [3] Provider 생성
 final homeProvider = NotifierProvider<HomeNotifier, HomeState>(() {
   return HomeNotifier();
 });
 
-// 🌟 [4] 장바구니 개수 전용 Provider (StreamProvider 사용)
+// 🌟 [4] 장바구니 개수 전용 Provider (기존 유지)
 final cartCountProvider = StreamProvider<int>((ref) {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return Stream.value(0);

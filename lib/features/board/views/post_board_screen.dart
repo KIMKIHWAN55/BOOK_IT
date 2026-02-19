@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../controllers/board_controller.dart';
 import '../models/post_model.dart';
-import 'write_post_screen.dart';
 import 'package:bookit_app/shared/widgets/post_card.dart';
+
+// 🌟 AppRouter 경로 추가
+import '../../../core/router/app_router.dart';
 
 class PostBoardScreen extends ConsumerStatefulWidget {
   const PostBoardScreen({super.key});
@@ -44,10 +46,8 @@ class _PostBoardScreenState extends ConsumerState<PostBoardScreen> with SingleTi
           IconButton(
             icon: const Icon(Icons.edit_square, color: Colors.black, size: 24),
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const WritePostScreen()),
-              );
+              // 🌟 수정됨: AppRouter를 통한 안전한 화면 이동
+              Navigator.pushNamed(context, AppRouter.writePost);
             },
           ),
           const SizedBox(width: 8),
@@ -74,9 +74,10 @@ class _PostBoardScreenState extends ConsumerState<PostBoardScreen> with SingleTi
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildList(recentPostsAsync, "등록된 글이 없습니다."),
-                _buildList(likedPostsAsync, "좋아요한 게시글이 없습니다."),
-                _buildList(myPostsAsync, "작성한 게시글이 없습니다."),
+                // 🌟 수정됨: 탭 전환 시 스크롤 위치 유지를 위해 기존 _buildList 대신 별도 위젯 사용
+                KeepAlivePostList(asyncPosts: recentPostsAsync, emptyMsg: "등록된 글이 없습니다."),
+                KeepAlivePostList(asyncPosts: likedPostsAsync, emptyMsg: "좋아요한 게시글이 없습니다."),
+                KeepAlivePostList(asyncPosts: myPostsAsync, emptyMsg: "작성한 게시글이 없습니다."),
               ],
             ),
           ),
@@ -84,12 +85,37 @@ class _PostBoardScreenState extends ConsumerState<PostBoardScreen> with SingleTi
       ),
     );
   }
+}
 
-  // 🔹 공통 리스트 빌더 (AsyncValue 처리)
-  Widget _buildList(AsyncValue<List<PostModel>> asyncValue, String emptyMsg) {
-    return asyncValue.when(
+// -----------------------------------------------------------------------------
+// 🌟 추가됨: 탭 전환 시 스크롤 위치와 상태를 유지하기 위한 헬퍼 위젯
+// -----------------------------------------------------------------------------
+class KeepAlivePostList extends StatefulWidget {
+  final AsyncValue<List<PostModel>> asyncPosts;
+  final String emptyMsg;
+
+  const KeepAlivePostList({
+    super.key,
+    required this.asyncPosts,
+    required this.emptyMsg,
+  });
+
+  @override
+  State<KeepAlivePostList> createState() => _KeepAlivePostListState();
+}
+
+class _KeepAlivePostListState extends State<KeepAlivePostList> with AutomaticKeepAliveClientMixin {
+  // 🌟 핵심: 상태 유지 활성화
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context); // AutomaticKeepAliveClientMixin 사용 시 필수 호출
+
+    return widget.asyncPosts.when(
       data: (posts) {
-        if (posts.isEmpty) return Center(child: Text(emptyMsg));
+        if (posts.isEmpty) return Center(child: Text(widget.emptyMsg));
         return ListView.separated(
           padding: const EdgeInsets.all(16),
           itemCount: posts.length,
