@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:bookit_app/features/book/models/book_model.dart';
-import 'book_detail_screen.dart'; // 👈 상세 페이지 import 필수
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class SearchScreen extends StatefulWidget {
+import '../models/book_model.dart';
+import '../controllers/search_controller.dart';
+import 'book_detail_screen.dart';
+
+class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
 
   @override
-  State<SearchScreen> createState() => _SearchScreenState();
+  ConsumerState<SearchScreen> createState() => _SearchScreenState();
 }
 
-class _SearchScreenState extends State<SearchScreen> {
+class _SearchScreenState extends ConsumerState<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchText = "";
 
@@ -27,6 +29,12 @@ class _SearchScreenState extends State<SearchScreen> {
       color: color,
       letterSpacing: -0.025 * size,
     );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -84,59 +92,54 @@ class _SearchScreenState extends State<SearchScreen> {
           Expanded(
             child: _searchText.isEmpty
                 ? _buildEmptyState()
-                : StreamBuilder<QuerySnapshot>(
-              // 1. Firestore에서는 모든 책을 불러옵니다 (쿼리 조건 제거)
-              stream: FirebaseFirestore.instance
-                  .collection('books')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return const Center(child: Text("오류가 발생했습니다."));
-                }
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final docs = snapshot.data!.docs;
-
-                // 2. 앱 내부에서 'contains'를 사용하여 중간 글자까지 검색되도록 필터링합니다.
-                final books = docs.map((doc) => BookModel.fromFirestore(doc)).where((book) {
-                  final titleLower = book.title.toLowerCase();
-                  final searchLower = _searchText.toLowerCase();
-                  final authorLower = book.author.toLowerCase();
-
-                  // 제목 또는 작가 이름에 검색어가 '포함'되어 있으면 결과에 추가
-                  return titleLower.contains(searchLower) || authorLower.contains(searchLower);
-                }).toList();
-
-                if (books.isEmpty) {
-                  return const Center(child: Text("검색 결과가 없습니다."));
-                }
-
-                return ListView.builder(
-                  padding: const EdgeInsets.only(top: 10),
-                  itemCount: books.length,
-                  itemBuilder: (context, index) {
-                    final book = books[index];
-                    return GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                BookDetailScreen(book: book),
-                          ),
-                        );
-                      },
-                      child: _buildSearchResultItem(book),
-                    );
-                  },
-                );
-              },
-            ),
+                : _buildSearchResults(),
           ),
         ],
       ),
+    );
+  }
+
+  // 검색 결과 위젯 (Riverpod 상태 구독)
+  Widget _buildSearchResults() {
+    final booksAsync = ref.watch(allBooksProvider);
+
+    return booksAsync.when(
+      data: (allBooks) {
+        // 앱 내부에서 'contains'를 사용하여 중간 글자까지 검색되도록 필터링합니다.
+        final books = allBooks.where((book) {
+          final titleLower = book.title.toLowerCase();
+          final searchLower = _searchText.toLowerCase();
+          final authorLower = book.author.toLowerCase();
+
+          // 제목 또는 작가 이름에 검색어가 '포함'되어 있으면 결과에 추가
+          return titleLower.contains(searchLower) || authorLower.contains(searchLower);
+        }).toList();
+
+        if (books.isEmpty) {
+          return const Center(child: Text("검색 결과가 없습니다."));
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.only(top: 10),
+          itemCount: books.length,
+          itemBuilder: (context, index) {
+            final book = books[index];
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => BookDetailScreen(book: book),
+                  ),
+                );
+              },
+              child: _buildSearchResultItem(book),
+            );
+          },
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stack) => const Center(child: Text("오류가 발생했습니다.")),
     );
   }
 

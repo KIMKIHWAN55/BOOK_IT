@@ -1,33 +1,30 @@
-import 'package:bookit_app/features/profile/views/profile_edit_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:bookit_app/features/auth/views/login_screen.dart';
-import 'package:bookit_app/features/admin/views/admin_book_list_screen.dart';
-import 'package:bookit_app/features/admin/views/admin_add_book_screen.dart';
-import 'package:bookit_app/features/profile/models/user_model.dart';
-import 'package:bookit_app/features/profile/views/settings_screen.dart';
-import 'liked_books_screen.dart'; // ★ 새로 만든 전체보기 화면 import
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class MyPageScreen extends StatefulWidget {
+import '../../auth/views/login_screen.dart';
+import '../../admin/views/admin_book_list_screen.dart';
+import '../../admin/views/admin_add_book_screen.dart';
+import '../models/user_model.dart';
+import '../controllers/profile_controller.dart';
+import 'profile_edit_screen.dart';
+import 'settings_screen.dart';
+import 'liked_books_screen.dart';
+
+class MyPageScreen extends ConsumerStatefulWidget {
   const MyPageScreen({super.key});
 
   @override
-  State<MyPageScreen> createState() => _MyPageScreenState();
+  ConsumerState<MyPageScreen> createState() => _MyPageScreenState();
 }
 
-class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderStateMixin {
-  final User? _user = FirebaseAuth.instance.currentUser;
-  bool _isAdmin = false;
-  UserModel? _userModel;
+// 탭 컨트롤러를 유지해야 하므로 ConsumerStatefulWidget 사용
+class _MyPageScreenState extends ConsumerState<MyPageScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _checkAdmin();
-    _fetchUserData();
   }
 
   @override
@@ -36,45 +33,46 @@ class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderSt
     super.dispose();
   }
 
-  // 관리자 여부 확인
-  Future<void> _checkAdmin() async {
-    if (_user != null) {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(_user!.uid).get();
-      if (doc.exists && doc.data() != null && doc.data()!['role'] == 'admin') {
-        if (mounted) setState(() => _isAdmin = true);
-      }
-    }
-  }
-
-  // 사용자 정보 불러오기
-  Future<void> _fetchUserData() async {
-    if (_user != null) {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(_user!.uid).get();
-      if (doc.exists) {
-        if (mounted) {
-          setState(() {
-            _userModel = UserModel.fromFirestore(doc);
-          });
-        }
-      }
+  // 로그아웃 처리
+  Future<void> _handleLogout() async {
+    await ref.read(profileActionControllerProvider).logout();
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+            (route) => false,
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_user == null) return const Scaffold(body: Center(child: Text("로그인이 필요합니다.")));
+    // 🌟 실시간 유저 정보 구독 (Riverpod)
+    final userProfileAsync = ref.watch(userProfileProvider);
 
-    // ★ 관리자(Admin) UI
-    if (_isAdmin) return _buildAdminLayout();
+    return userProfileAsync.when(
+      data: (userModel) {
+        if (userModel == null) {
+          return const Scaffold(body: Center(child: Text("로그인이 필요합니다.")));
+        }
 
-    // ★ 일반 사용자(User) UI
-    return _buildUserLayout();
+        // 관리자 권한 확인
+        final bool isAdmin = userModel.role == 'admin';
+
+        if (isAdmin) {
+          return _buildAdminLayout(userModel);
+        }
+        return _buildUserLayout(userModel);
+      },
+      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (e, st) => Scaffold(body: Center(child: Text("사용자 정보를 불러오지 못했습니다.\n$e"))),
+    );
   }
 
   // ============================================================
   //  1. 관리자(Admin) 레이아웃
   // ============================================================
-  Widget _buildAdminLayout() {
+  Widget _buildAdminLayout(UserModel userModel) {
     return Scaffold(
       backgroundColor: const Color(0xFFF1F1F5),
       appBar: _buildAppBar(title: "관리자 페이지"),
@@ -86,7 +84,7 @@ class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderSt
             _buildInfoCard(
               child: Row(
                 children: [
-                  _buildProfileImage(size: 50),
+                  _buildProfileImage(userModel, size: 50),
                   const SizedBox(width: 14),
                   const Text(
                     '관리자',
@@ -132,7 +130,7 @@ class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderSt
   // ============================================================
   //  2. 일반 사용자(User) 레이아웃
   // ============================================================
-  Widget _buildUserLayout() {
+  Widget _buildUserLayout(UserModel userModel) {
     return Scaffold(
       backgroundColor: const Color(0xFFF1F1F5),
       appBar: _buildAppBar(title: "내 정보"),
@@ -147,18 +145,19 @@ class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderSt
                     const SizedBox(height: 20),
                     GestureDetector(
                       onTap: () {
+                        // 수정 페이지에서 돌아와도 StreamProvider가 자동으로 최신화해 줌
                         Navigator.push(
                           context,
                           MaterialPageRoute(builder: (context) => const ProfileEditScreen()),
-                        ).then((_) => _fetchUserData());
+                        );
                       },
                       child: _buildInfoCard(
                         child: Row(
                           children: [
-                            _buildProfileImage(size: 50),
+                            _buildProfileImage(userModel, size: 50),
                             const SizedBox(width: 14),
                             Text(
-                              _userModel?.nickname ?? '사용자',
+                              userModel.nickname,
                               style: const TextStyle(fontFamily: 'Pretendard', fontSize: 18, fontWeight: FontWeight.w500, color: Color(0xFF222222)),
                             ),
                             const Spacer(),
@@ -174,12 +173,12 @@ class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderSt
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            "안녕 나는 ${_userModel?.nickname ?? '사용자'}이야 반가워",
+                            "안녕 나는 ${userModel.nickname}이야 반가워",
                             style: const TextStyle(fontFamily: 'Pretendard', fontSize: 16, color: Color(0xFF222222)),
                           ),
                           const SizedBox(height: 4),
                           const Text(
-                            "# SF # 추리 #로맨스 장르 좋아해",
+                            "# SF # 추리 # 로맨스 장르 좋아해",
                             style: TextStyle(fontFamily: 'Pretendard', fontSize: 16, color: Color(0xFF196DF8)),
                           ),
                         ],
@@ -212,7 +211,7 @@ class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderSt
         body: TabBarView(
           controller: _tabController,
           children: [
-            _buildLikedBooksList(), // 책 목록 (수정됨)
+            _buildLikedBooksList(), // 좋아요한 책 스트림 위젯
             _buildLikedFeedsList(), // 피드 목록
           ],
         ),
@@ -232,10 +231,7 @@ class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderSt
         IconButton(
           icon: const Icon(Icons.settings_outlined, color: Colors.black),
           onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const SettingsScreen()),
-            );
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen()));
           },
         ),
       ],
@@ -262,57 +258,49 @@ class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderSt
     );
   }
 
-  Widget _buildProfileImage({required double size}) {
+  Widget _buildProfileImage(UserModel userModel, {required double size}) {
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         color: const Color(0xFFF4F4F4),
         shape: BoxShape.circle,
-        image: _userModel?.profileImage != null && _userModel!.profileImage!.isNotEmpty
-            ? DecorationImage(image: NetworkImage(_userModel!.profileImage!), fit: BoxFit.cover)
+        image: userModel.profileImage != null && userModel.profileImage!.isNotEmpty
+            ? DecorationImage(image: NetworkImage(userModel.profileImage!), fit: BoxFit.cover)
             : null,
       ),
-      child: _userModel?.profileImage == null || _userModel!.profileImage!.isEmpty
+      child: userModel.profileImage == null || userModel.profileImage!.isEmpty
           ? Icon(Icons.person, size: size * 0.6, color: Colors.grey)
           : null,
     );
   }
 
-  // ★ [수정] 좋아요한 책 리스트: 4개까지만 표시 + 더보기 버튼
+  // 🌟 [수정] 좋아요한 책 리스트: Riverpod 구독
   Widget _buildLikedBooksList() {
-    return StreamBuilder<QuerySnapshot>(
-      // 기존 코드의 컬렉션명(liked_books) 유지
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(_user!.uid)
-          .collection('liked_books')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final docs = snapshot.data!.docs;
+    final likedBooksAsync = ref.watch(likedBooksProvider);
+
+    return likedBooksAsync.when(
+      data: (snapshot) {
+        final docs = snapshot.docs;
 
         if (docs.isEmpty) {
           return const Center(child: Text("좋아요한 책이 없습니다.", style: TextStyle(color: Colors.grey)));
         }
 
-        // 4개 초과 여부 확인
         final bool hasMore = docs.length > 4;
         final int displayCount = hasMore ? 4 : docs.length;
 
         return ListView.builder(
           padding: const EdgeInsets.only(top: 10, bottom: 20),
-          // 아이템 개수: 4개 이하 + (더보기 버튼이 필요하면 1개 추가)
           itemCount: hasMore ? displayCount + 1 : displayCount,
           itemBuilder: (context, index) {
-            // 더보기 버튼을 그릴 순서인지 확인 (마지막 항목)
+            // 더보기 버튼
             if (hasMore && index == displayCount) {
               return Container(
                 margin: const EdgeInsets.only(top: 10),
                 alignment: Alignment.center,
                 child: TextButton(
                   onPressed: () {
-                    // 전체보기 화면으로 이동
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const LikedBooksScreen()),
@@ -330,8 +318,8 @@ class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderSt
               );
             }
 
-            // 일반 책 아이템 그리기
-            var book = docs[index];
+            // 책 아이템
+            var book = docs[index].data() as Map<String, dynamic>;
             return Container(
               height: 136,
               margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -343,7 +331,6 @@ class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderSt
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
                 child: Row(
                   children: [
-                    // 책 표지
                     Container(
                       width: 73,
                       height: 110,
@@ -358,7 +345,6 @@ class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderSt
                       ),
                     ),
                     const SizedBox(width: 20),
-                    // 책 정보
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -394,6 +380,8 @@ class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderSt
           },
         );
       },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, st) => const Center(child: Text("데이터를 불러오는 중 오류가 발생했습니다.")),
     );
   }
 
@@ -406,13 +394,6 @@ class _MyPageScreenState extends State<MyPageScreen> with SingleTickerProviderSt
       onPressed: _handleLogout,
       child: const Text("로그아웃", style: TextStyle(color: Colors.grey, decoration: TextDecoration.underline)),
     );
-  }
-
-  Future<void> _handleLogout() async {
-    await FirebaseAuth.instance.signOut();
-    if (mounted) {
-      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const LoginScreen()), (route) => false);
-    }
   }
 }
 

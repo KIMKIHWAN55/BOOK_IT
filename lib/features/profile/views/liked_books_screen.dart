@@ -1,17 +1,60 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../../book/models/book_model.dart';
-import '../../book/views/book_detail_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class LikedBooksScreen extends StatelessWidget {
+import '../../book/views/book_detail_screen.dart';
+import '../controllers/profile_controller.dart';
+
+class LikedBooksScreen extends ConsumerStatefulWidget {
   const LikedBooksScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+  ConsumerState<LikedBooksScreen> createState() => _LikedBooksScreenState();
+}
 
-    if (user == null) return const Scaffold(body: Center(child: Text("로그인이 필요합니다.")));
+class _LikedBooksScreenState extends ConsumerState<LikedBooksScreen> {
+  bool _isLoading = false; // 중복 클릭(따닥) 방지용 상태
+
+  // 책 클릭 시 상세 정보 불러오기 & 이동
+  void _handleBookTap(String bookId) async {
+    if (_isLoading) return; // 이미 로딩 중이면 터치 무시
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Controller를 통해 전체 책 정보 조회
+      final book = await ref.read(profileActionControllerProvider).getBookDetail(bookId);
+
+      if (mounted) {
+        if (book != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => BookDetailScreen(book: book),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("정보를 불러올 수 없는 책입니다.")),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("책 정보를 불러오는 중 오류가 발생했습니다.")),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // 좋아요 스트림 구독
+    final likedBooksAsync = ref.watch(likedBooksProvider);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -24,88 +67,75 @@ class LikedBooksScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .collection('likes')
-            .orderBy('likedAt', descending: true)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text("좋아요한 책이 없습니다.", style: TextStyle(color: Colors.grey)));
-          }
+      body: Stack(
+        children: [
+          likedBooksAsync.when(
+            data: (snapshot) {
+              final docs = snapshot.docs;
+              if (docs.isEmpty) {
+                return const Center(child: Text("좋아요한 책이 없습니다.", style: TextStyle(color: Colors.grey)));
+              }
 
-          final docs = snapshot.data!.docs;
-
-          return GridView.builder(
-            padding: const EdgeInsets.all(16),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              childAspectRatio: 0.65,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-            ),
-            itemCount: docs.length,
-            itemBuilder: (context, index) {
-              final data = docs[index].data() as Map<String, dynamic>;
-              final bookId = docs[index].id;
-
-              return GestureDetector(
-                onTap: () async {
-                  // 상세 페이지 이동 로직
-                  try {
-                    final bookDoc = await FirebaseFirestore.instance.collection('books').doc(bookId).get();
-                    if (bookDoc.exists) {
-                      final fullBookData = BookModel.fromFirestore(bookDoc);
-                      if (context.mounted) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => BookDetailScreen(book: fullBookData),
-                          ),
-                        );
-                      }
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("정보를 불러올 수 없는 책입니다.")));
-                    }
-                  } catch (e) {
-                    print("책 로드 오류: $e");
-                  }
-                },
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          image: DecorationImage(
-                            image: NetworkImage(data['imageUrl'] ?? ''),
-                            fit: BoxFit.cover,
-                          ),
-                          boxShadow: [
-                            BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2)),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      data['title'] ?? '제목 없음',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                    ),
-                  ],
+              return GridView.builder(
+                padding: const EdgeInsets.all(16),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  childAspectRatio: 0.65,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
                 ),
+                itemCount: docs.length,
+                itemBuilder: (context, index) {
+                  final data = docs[index].data() as Map<String, dynamic>;
+                  final bookId = docs[index].id;
+
+                  return GestureDetector(
+                    onTap: () => _handleBookTap(bookId),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              image: DecorationImage(
+                                image: NetworkImage(data['imageUrl'] ?? ''),
+                                fit: BoxFit.cover,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2)
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          data['title'] ?? '제목 없음',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               );
             },
-          );
-        },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stack) => Center(child: Text("오류가 발생했습니다: $error")),
+          ),
+
+          // 상세 정보 불러오는 중일 때 화면 전체를 덮는 로딩 인디케이터
+          if (_isLoading)
+            Container(
+              color: Colors.white.withOpacity(0.5),
+              child: const Center(child: CircularProgressIndicator()),
+            ),
+        ],
       ),
     );
   }

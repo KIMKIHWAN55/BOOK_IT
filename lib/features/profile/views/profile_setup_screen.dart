@@ -1,28 +1,27 @@
-import 'dart:io'; // 파일 처리를 위해 추가
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart'; // 스토리지 추가
-import 'package:image_picker/image_picker.dart'; // 이미지 피커 추가
-import '../../auth/views/signup_complete_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
-class ProfileSetupScreen extends StatefulWidget {
+import '../../auth/views/signup_complete_screen.dart';
+import '../controllers/profile_controller.dart'; // Riverpod Controller 추가
+
+class ProfileSetupScreen extends ConsumerStatefulWidget {
   const ProfileSetupScreen({super.key});
 
   @override
-  State<ProfileSetupScreen> createState() => _ProfileSetupScreenState();
+  ConsumerState<ProfileSetupScreen> createState() => _ProfileSetupScreenState();
 }
 
-class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
+class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _nicknameController = TextEditingController();
   final TextEditingController _bioController = TextEditingController();
 
   bool _isLoading = false;
-  File? _imageFile; // 갤러리에서 선택한 이미지 파일
+  File? _imageFile;
   final ImagePicker _picker = ImagePicker();
 
-  // 🔹 Pretendard 스타일 헬퍼
   TextStyle _ptStyle({
     required double size,
     required FontWeight weight,
@@ -38,7 +37,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     );
   }
 
-  // 🔹 갤러리에서 이미지 선택 함수
+  // 갤러리에서 이미지 선택 (UI 로직)
   Future<void> _pickImage() async {
     try {
       final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
@@ -48,18 +47,14 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         });
       }
     } catch (e) {
-      print("이미지 선택 오류: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("갤러리를 여는 도중 오류가 발생했습니다.")),
       );
     }
   }
 
-  // 🔹 프로필 저장 로직 (이미지 업로드 포함)
+  // 🌟 프로필 저장 로직 (Riverpod Controller 사용)
   Future<void> _saveProfile() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
     if (_nameController.text.isEmpty || _nicknameController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("이름과 닉네임은 필수 입력 항목입니다.")),
@@ -70,28 +65,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     setState(() => _isLoading = true);
 
     try {
-      String profileImageUrl = '';
-
-      // 1. 이미지가 선택되었다면 Firebase Storage에 업로드
-      if (_imageFile != null) {
-        final storageRef = FirebaseStorage.instance
-            .ref()
-            .child('user_profile_images')
-            .child('${user.uid}.jpg'); // 유저 ID로 파일명 지정
-
-        await storageRef.putFile(_imageFile!); // 업로드 실행
-        profileImageUrl = await storageRef.getDownloadURL(); // 다운로드 URL 가져오기
-      }
-
-      // 2. Firestore에 회원 정보 저장
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-        'name': _nameController.text,
-        'nickname': _nicknameController.text,
-        'bio': _bioController.text,
-        'profileImageUrl': profileImageUrl, // 업로드된 URL 저장 (없으면 빈 문자열)
-        'role': 'user',
-        'createdAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      // Controller의 setupProfile을 호출하여 비즈니스 로직 위임
+      await ref.read(profileActionControllerProvider).setupProfile(
+        name: _nameController.text.trim(),
+        nickname: _nicknameController.text.trim(),
+        bio: _bioController.text.trim(),
+        imageFile: _imageFile,
+      );
 
       if (mounted) {
         Navigator.pushReplacement(
@@ -100,7 +80,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("오류 발생: $e")));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("오류 발생: ${e.toString().replaceAll('Exception: ', '')}")),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -131,14 +115,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
             const SizedBox(height: 40),
 
-            // 🌟 [수정됨] 프로필 사진 추가 영역
+            // 프로필 사진 추가 영역
             GestureDetector(
-              onTap: _pickImage, // 클릭 시 갤러리 오픈
+              onTap: _pickImage,
               child: Column(
                 children: [
                   Stack(
                     children: [
-                      // 원형 이미지 표시
                       Container(
                         width: 80, height: 80,
                         decoration: BoxDecoration(
@@ -147,17 +130,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                           boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 5))],
                           image: _imageFile != null
                               ? DecorationImage(
-                            image: FileImage(_imageFile!), // 선택한 사진 표시
+                            image: FileImage(_imageFile!),
                             fit: BoxFit.cover,
                           )
                               : null,
                         ),
-                        // 사진 없을 때 기본 아이콘
                         child: _imageFile == null
                             ? const Center(child: Icon(Icons.person, size: 40, color: Color(0xFFCCCCCC)))
                             : null,
                       ),
-                      // 카메라 아이콘
                       Positioned(
                         bottom: 0, right: 0,
                         child: Container(
@@ -183,7 +164,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             // 입력 폼
             _buildInputField(label: "이름", controller: _nameController, hintText: "이름을 입력해주세요"),
             const SizedBox(height: 24),
-            _buildInputField(label: "닉네임", controller: _nicknameController, hintText: "닉네임을 입력해주세요 (2~20자 이내여야합니다)"),
+            _buildInputField(label: "닉네임", controller: _nicknameController, hintText: "닉네임을 입력해주세요 (2~20자 이내)"),
             const SizedBox(height: 24),
             _buildInputField(label: "소개", controller: _bioController, hintText: "자기 소개 문구를 입력해 주세요"),
 
@@ -198,9 +179,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   backgroundColor: const Color(0xFFD45858),
                   elevation: 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  disabledBackgroundColor: const Color(0xFFD45858).withOpacity(0.5),
                 ),
                 child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
+                    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                     : Text("다음", style: _ptStyle(size: 18, weight: FontWeight.w600, color: Colors.white)),
               ),
             ),
@@ -211,7 +193,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     );
   }
 
-  // 입력 필드 빌더 (기존과 동일)
+  // 입력 필드 빌더
   Widget _buildInputField({required String label, required TextEditingController controller, required String hintText}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

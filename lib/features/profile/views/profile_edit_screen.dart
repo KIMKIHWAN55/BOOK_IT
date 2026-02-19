@@ -1,26 +1,24 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart'; // 이미지 선택
-import 'package:firebase_storage/firebase_storage.dart'; // 이미지 저장
-import 'package:cloud_firestore/cloud_firestore.dart'; // 데이터 저장
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
+import '../controllers/profile_controller.dart';
 
-class ProfileEditScreen extends StatefulWidget {
+class ProfileEditScreen extends ConsumerStatefulWidget {
   const ProfileEditScreen({super.key});
 
   @override
-  State<ProfileEditScreen> createState() => _ProfileEditScreenState();
+  ConsumerState<ProfileEditScreen> createState() => _ProfileEditScreenState();
 }
 
-class _ProfileEditScreenState extends State<ProfileEditScreen> {
-  final _user = FirebaseAuth.instance.currentUser;
+class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   final _nameController = TextEditingController();
   final _nicknameController = TextEditingController();
   final _bioController = TextEditingController();
 
-  File? _imageFile; // 갤러리에서 선택한 이미지 파일
-  String? _currentImageUrl; // 현재 설정된 이미지 URL
+  File? _imageFile;
+  String? _currentImageUrl;
   bool _isLoading = false;
 
   @override
@@ -29,17 +27,15 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     _loadUserData();
   }
 
-  // 기존 사용자 정보 불러오기
+  // Controller를 통해 기존 사용자 정보 불러오기
   Future<void> _loadUserData() async {
-    if (_user == null) return;
     try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(_user!.uid).get();
-      if (doc.exists) {
-        final data = doc.data()!;
+      final data = await ref.read(profileActionControllerProvider).getRawProfileData();
+      if (data != null && mounted) {
         setState(() {
           _nicknameController.text = data['nickname'] ?? '';
-          _nameController.text = data['name'] ?? ''; // DB에 name 필드가 있다면 로드
-          _bioController.text = data['bio'] ?? '';   // DB에 bio 필드가 있다면 로드
+          _nameController.text = data['name'] ?? '';
+          _bioController.text = data['bio'] ?? '';
           _currentImageUrl = data['profileImage'];
         });
       }
@@ -48,7 +44,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     }
   }
 
-  // 갤러리에서 이미지 선택
+  // 갤러리에서 이미지 선택 (UI 역할이므로 View에 유지)
   Future<void> _pickImage() async {
     final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
@@ -58,33 +54,18 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     }
   }
 
-  // 프로필 저장 (이미지 업로드 -> URL 획득 -> Firestore 업데이트)
+  // 프로필 저장 액션
   Future<void> _saveProfile() async {
-    if (_user == null) return;
     setState(() => _isLoading = true);
 
     try {
-      String? downloadUrl = _currentImageUrl;
-
-      // 1. 이미지가 변경되었다면 Storage에 업로드
-      if (_imageFile != null) {
-        final storageRef = FirebaseStorage.instance
-            .ref()
-            .child('user_profile')
-            .child('${_user!.uid}.jpg'); // 파일명: uid.jpg
-
-        await storageRef.putFile(_imageFile!);
-        downloadUrl = await storageRef.getDownloadURL();
-      }
-
-// 2. Firestore 정보 업데이트 (안전하게 저장)
-      await FirebaseFirestore.instance.collection('users').doc(_user!.uid).set({
-        'name': _nameController.text.trim(),
-        'nickname': _nicknameController.text.trim(),
-        'bio': _bioController.text.trim(), // 소개글
-        // 이미지가 변경되었을 때만(null이 아닐 때만) profileImage 필드를 업데이트
-        if (downloadUrl != null) 'profileImage': downloadUrl,
-      }, SetOptions(merge: true)); // ★ 중요: 기존 데이터(이메일 등)는 살려두고 덮어쓰기
+      // Storage 업로드와 Firestore 업데이트를 Controller가 알아서 처리
+      await ref.read(profileActionControllerProvider).updateProfile(
+        name: _nameController.text.trim(),
+        nickname: _nicknameController.text.trim(),
+        bio: _bioController.text.trim(),
+        imageFile: _imageFile,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -93,9 +74,11 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         Navigator.pop(context); // 저장 후 뒤로가기
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('저장 실패: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('저장 실패: ${e.toString().replaceAll("Exception: ", "")}')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -131,13 +114,12 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           children: [
             const SizedBox(height: 30),
 
-            // --- 프로필 이미지 영역 (CSS 기반) ---
+            // --- 프로필 이미지 영역 ---
             GestureDetector(
               onTap: _pickImage,
               child: Stack(
                 alignment: Alignment.bottomRight,
                 children: [
-                  // 이미지 원형
                   Container(
                     width: 100,
                     height: 100,
@@ -154,14 +136,12 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                         ? const Icon(Icons.person, size: 50, color: Colors.grey)
                         : null,
                   ),
-
-                  // 카메라 아이콘 (빨간 원)
                   Container(
                     width: 30,
                     height: 30,
                     margin: const EdgeInsets.only(right: 5, bottom: 5),
                     decoration: const BoxDecoration(
-                      color: Color(0xFFD45858), // 빨간색 포인트
+                      color: Color(0xFFD45858),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.camera_alt, color: Colors.white, size: 18),
@@ -171,7 +151,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
             ),
             const SizedBox(height: 12),
 
-            // "사진 변경하기" 텍스트
             GestureDetector(
               onTap: _pickImage,
               child: const Text(
@@ -180,7 +159,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                   fontFamily: 'Pretendard',
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFFD45858), // 포인트 컬러
+                  color: Color(0xFFD45858),
                 ),
               ),
             ),
@@ -203,7 +182,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               child: ElevatedButton(
                 onPressed: _saveProfile,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD45858), // 버튼 색상
+                  backgroundColor: const Color(0xFFD45858),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -227,19 +206,17 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     );
   }
 
-  // 커스텀 텍스트 필드 위젯 (CSS 스타일 적용)
   Widget _buildCustomTextField({required String label, required TextEditingController controller}) {
     return Container(
       height: 52,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFC2C2C2)), // 테두리 색상
+        border: Border.all(color: const Color(0xFFC2C2C2)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          // 라벨 (이름, 닉네임, 소개)
           SizedBox(
             width: 50,
             child: Text(
@@ -247,12 +224,11 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               style: const TextStyle(
                 fontFamily: 'Pretendard',
                 fontSize: 14,
-                color: Color(0xFF767676), // 글자 색상
+                color: Color(0xFF767676),
               ),
             ),
           ),
-          const VerticalDivider(color: Colors.transparent, width: 10), // 간격
-          // 입력창
+          const VerticalDivider(color: Colors.transparent, width: 10),
           Expanded(
             child: TextField(
               controller: controller,

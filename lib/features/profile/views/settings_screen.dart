@@ -1,55 +1,68 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:bookit_app/features/auth/views/login_screen.dart';
+import '../controllers/profile_controller.dart'; // Controller 추가
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  bool _isLoading = false; // 중복 클릭 방지용
 
   // 1. 비밀번호 변경 (재설정 이메일 발송 방식)
   Future<void> _changePassword() async {
-    final user = _auth.currentUser;
-    if (user != null && user.email != null) {
-      try {
-        await _auth.sendPasswordResetEmail(email: user.email!);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${user.email}로 비밀번호 재설정 메일을 보냈습니다.')),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('메일 발송 실패: $e')),
-          );
-        }
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+
+    try {
+      await ref.read(profileActionControllerProvider).sendPasswordResetEmail();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('비밀번호 재설정 메일을 보냈습니다.')),
+        );
       }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('메일 발송 실패: ${e.toString().replaceAll("Exception: ", "")}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   // 2. 로그아웃
   Future<void> _logout() async {
-    await _auth.signOut();
-    if (mounted) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-            (route) => false,
-      );
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+
+    try {
+      await ref.read(profileActionControllerProvider).logout();
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+              (route) => false,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('로그아웃에 실패했습니다.')),
+        );
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   // 3. 회원 탈퇴
   Future<void> _deleteAccount() async {
-    final user = _auth.currentUser;
-    if (user == null) return;
+    if (_isLoading) return;
 
     // 확인 다이얼로그
     bool? confirm = await showDialog(
@@ -71,11 +84,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
 
     if (confirm == true) {
+      setState(() => _isLoading = true);
+
       try {
-        // DB 데이터 삭제
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).delete();
-        // 계정 삭제
-        await user.delete();
+        await ref.read(profileActionControllerProvider).deleteAccount();
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -87,9 +99,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 (route) => false,
           );
         }
-      } on FirebaseAuthException catch (e) {
+      } catch (e) {
+        final errorMsg = e.toString();
         // 로그인한 지 오래된 경우 재인증 필요
-        if (e.code == 'requires-recent-login') {
+        if (errorMsg.contains('requires-recent-login')) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('보안을 위해 다시 로그인한 후 탈퇴해주세요.')),
@@ -99,10 +112,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         } else {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('탈퇴 실패: $e')),
+              SnackBar(content: Text('탈퇴 실패: ${errorMsg.replaceAll("Exception: ", "")}')),
             );
           }
         }
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
       }
     }
   }
@@ -129,22 +144,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Column(
+      body: Stack(
         children: [
-          const SizedBox(height: 20), // 상단 여백 (Frame 297 top: 80 - 32 = 48 -> approx 20 padding)
+          Column(
+            children: [
+              const SizedBox(height: 20),
 
-          // --- 앱 설정 섹션 ---
-          _buildSectionHeader("앱 설정"),
-          _buildSettingsItem(title: "잠금 설정", onTap: () {}), // 기능 미구현 (UI만)
-          _buildSettingsItem(title: "알림 설정", onTap: () {}), // 기능 미구현 (UI만)
+              // --- 앱 설정 섹션 ---
+              _buildSectionHeader("앱 설정"),
+              _buildSettingsItem(title: "잠금 설정", onTap: () {}),
+              _buildSettingsItem(title: "알림 설정", onTap: () {}),
 
-          const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-          // --- 계정 설정 섹션 ---
-          _buildSectionHeader("계정 설정"),
-          _buildSettingsItem(title: "비밀번호 변경", onTap: _changePassword),
-          _buildSettingsItem(title: "로그 아웃", onTap: _logout),
-          _buildSettingsItem(title: "회원 탈퇴", onTap: _deleteAccount, isLast: true),
+              // --- 계정 설정 섹션 ---
+              _buildSectionHeader("계정 설정"),
+              _buildSettingsItem(title: "비밀번호 변경", onTap: _changePassword),
+              _buildSettingsItem(title: "로그 아웃", onTap: _logout),
+              _buildSettingsItem(title: "회원 탈퇴", onTap: _deleteAccount, isLast: true),
+            ],
+          ),
+
+          // 로딩 스피너 (처리 중일 때 화면 터치 막기)
+          if (_isLoading)
+            Container(
+              color: Colors.white.withOpacity(0.5),
+              child: const Center(
+                child: CircularProgressIndicator(color: Color(0xFFD45858)),
+              ),
+            ),
         ],
       ),
     );
@@ -155,7 +183,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Container(
       width: double.infinity,
       height: 42,
-      color: const Color(0xFFF1F1F5), // CSS Background
+      color: const Color(0xFFF1F1F5),
       padding: const EdgeInsets.symmetric(horizontal: 16),
       alignment: Alignment.centerLeft,
       child: Text(
@@ -183,7 +211,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ? null
               : const Border(
             bottom: BorderSide(
-              color: Color(0xFFD1D1D1), // rgba(209, 209, 209, 0.5)
+              color: Color(0xFFD1D1D1),
               width: 0.5,
             ),
           ),
@@ -201,7 +229,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 color: Color(0xFF222222),
               ),
             ),
-            const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFF222222)), // 화살표 아이콘
+            const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFF222222)),
           ],
         ),
       ),

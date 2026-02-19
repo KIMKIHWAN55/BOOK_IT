@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/book_model.dart';
-import 'book_detail_screen.dart'; // 상세 페이지로 이동하기 위해 필요
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class CategoryResultScreen extends StatelessWidget {
+import '../models/book_model.dart';
+import '../controllers/category_controller.dart';
+import 'book_detail_screen.dart';
+
+class CategoryResultScreen extends ConsumerWidget {
   final String category; // 선택된 카테고리 이름 (예: "SF")
 
   const CategoryResultScreen({super.key, required this.category});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 🌟 [핵심] Riverpod 3.2.1: 카테고리 파라미터를 넘겨서 상태 구독
+    final booksAsync = ref.watch(categoryBooksProvider(category));
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -21,21 +26,11 @@ class CategoryResultScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        // 🌟 [핵심] 'tags' 배열에 해당 카테고리가 포함된 책을 검색
-        stream: FirebaseFirestore.instance
-            .collection('books')
-            .where('tags', arrayContains: category)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+      body: booksAsync.when(
+        data: (books) {
+          if (books.isEmpty) {
             return Center(child: Text("'$category' 카테고리의 책이 없습니다."));
           }
-
-          final docs = snapshot.data!.docs;
 
           return GridView.builder(
             padding: const EdgeInsets.all(16),
@@ -45,9 +40,9 @@ class CategoryResultScreen extends StatelessWidget {
               crossAxisSpacing: 16,
               mainAxisSpacing: 24,
             ),
-            itemCount: docs.length,
+            itemCount: books.length,
             itemBuilder: (context, index) {
-              final book = BookModel.fromFirestore(docs[index]);
+              final book = books[index];
               return GestureDetector(
                 onTap: () {
                   // 책 클릭 시 상세 페이지로 이동
@@ -92,6 +87,8 @@ class CategoryResultScreen extends StatelessWidget {
             },
           );
         },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stack) => Center(child: Text("데이터를 불러오는 중 오류가 발생했습니다.\n$error")),
       ),
     );
   }

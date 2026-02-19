@@ -94,4 +94,46 @@ class BookRepository {
         .orderBy('createdAt', descending: true)
         .snapshots();
   }
+  // 전체 도서 목록 가져오기 (Stream)
+  Stream<List<BookModel>> getAllBooksStream() {
+    return _firestore.collection('books').snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => BookModel.fromFirestore(doc)).toList();
+    });
+  }
+  // 내 서재(구매한 책) 목록 가져오기 (Stream)
+  Stream<QuerySnapshot> getPurchasedBooksStream() {
+    final user = _auth.currentUser;
+    if (user == null) {
+      return const Stream.empty();
+    }
+    return _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('purchased_books')
+        .orderBy('purchasedAt', descending: true)
+        .snapshots();
+  }
+
+  // 독서 기록(읽은 페이지) 업데이트
+  Future<void> updateCurrentPage(String bookId, int newPage) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception("로그인이 필요합니다.");
+
+    await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('purchased_books')
+        .doc(bookId)
+        .update({'currentPage': newPage});
+  }
+  // 특정 카테고리(태그) 도서 목록 가져오기 (Stream)
+  Stream<List<BookModel>> getBooksByCategoryStream(String category) {
+    return _firestore
+        .collection('books')
+        .where('tags', arrayContains: category)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) => BookModel.fromFirestore(doc)).toList();
+    });
+  }
 }

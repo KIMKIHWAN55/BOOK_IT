@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
-class PaymentScreen extends StatelessWidget {
+import '../controllers/payment_controller.dart';
+
+class PaymentScreen extends ConsumerStatefulWidget {
   final List<Map<String, dynamic>> items;
   final int totalPrice;
 
@@ -12,6 +13,57 @@ class PaymentScreen extends StatelessWidget {
     required this.items,
     required this.totalPrice,
   });
+
+  @override
+  ConsumerState<PaymentScreen> createState() => _PaymentScreenState();
+}
+
+class _PaymentScreenState extends ConsumerState<PaymentScreen> {
+  bool _isLoading = false; // 결제 중 중복 클릭 방지용 상태
+
+  // 결제 처리 핸들러
+  void _handlePayment() async {
+    if (_isLoading) return; // 이미 결제 진행 중이면 무시
+
+    setState(() => _isLoading = true);
+
+    try {
+      // 1. Controller를 통해 결제(Firestore Batch) 요청
+      await ref.read(paymentControllerProvider).processPayment(widget.items);
+
+      // 2. 결제 완료 팝업
+      if (mounted) {
+        final formatCurrency = NumberFormat("#,###", "ko_KR");
+        showDialog(
+          context: context,
+          barrierDismissible: false, // 팝업 바깥을 눌러서 닫히는 것 방지
+          builder: (context) => AlertDialog(
+            title: const Text("결제 완료"),
+            content: Text("총 ${formatCurrency.format(widget.totalPrice)}원이 결제되었습니다.\n내 서재에 책이 추가되었습니다."),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context); // 다이얼로그 닫기
+                  Navigator.popUntil(context, (route) => route.isFirst); // 홈으로 한 번에 이동
+                },
+                child: const Text("확인"),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceAll("Exception: ", ""))),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +88,7 @@ class PaymentScreen extends StatelessWidget {
             const Text("주문 상품", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             // 주문 목록 리스트
-            ...items.map((item) => Container(
+            ...widget.items.map((item) => Container(
               margin: const EdgeInsets.only(bottom: 10),
               child: Row(
                 children: [
@@ -92,67 +144,22 @@ class PaymentScreen extends StatelessWidget {
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(16.0),
         child: ElevatedButton(
-          onPressed: () async {
-            // 1. 로그인 유저 확인
-            final user = FirebaseAuth.instance.currentUser;
-            if (user == null) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("로그인이 필요합니다.")));
-              return;
-            }
-
-            // 2. Firestore에 구매 정보 저장 (users -> uid -> purchased_books)
-            final batch = FirebaseFirestore.instance.batch();
-
-            for (var item in items) {
-              // item에 'id'가 포함되어 있어야 합니다. (장바구니나 상세페이지에서 넘겨줄 때 id 포함 필수)
-              final bookId = item['id'] ?? DateTime.now().millisecondsSinceEpoch.toString();
-
-              final docRef = FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(user.uid)
-                  .collection('purchased_books')
-                  .doc(bookId);
-
-              batch.set(docRef, {
-                'id': bookId,
-                'title': item['title'],
-                'author': item['author'],
-                'imageUrl': item['imageUrl'],
-                'price': item['price'],
-                'purchasedAt': FieldValue.serverTimestamp(), // 구매 시간
-                'currentPage': 0, // 👈 내 서재 독서 기록용 (초기값 0)
-              });
-            }
-
-            await batch.commit(); // 일괄 저장 실행
-
-            // 3. 결제 완료 팝업 (기존 코드 유지)
-            if (context.mounted) {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text("결제 완료"),
-                  content: Text("총 ${formatCurrency.format(totalPrice)}원이 결제되었습니다.\n내 서재에 책이 추가되었습니다."),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(context); // 다이얼로그 닫기
-                        Navigator.popUntil(context, (route) => route.isFirst); // 홈으로 이동
-                      },
-                      child: const Text("확인"),
-                    ),
-                  ],
-                ),
-              );
-            }
-          },
+          // 로딩 중일 때는 null을 주어 버튼을 비활성화 시킴 (회색 처리됨)
+          onPressed: _isLoading ? null : _handlePayment,
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFFD45858),
             padding: const EdgeInsets.symmetric(vertical: 16),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            disabledBackgroundColor: const Color(0xFFD45858).withOpacity(0.5),
           ),
-          child: Text(
-            "${formatCurrency.format(totalPrice)}원 결제하기",
+          child: _isLoading
+              ? const SizedBox(
+            height: 20,
+            width: 20,
+            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+          )
+              : Text(
+            "${formatCurrency.format(widget.totalPrice)}원 결제하기",
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
           ),
         ),

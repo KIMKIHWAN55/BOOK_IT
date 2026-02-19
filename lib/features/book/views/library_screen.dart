@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:bookit_app/features/book/models/book_model.dart';
-import 'package:bookit_app/features/board/views/write_review_screen.dart';
 
-class LibraryScreen extends StatefulWidget {
+import '../models/book_model.dart';
+import '../controllers/library_controller.dart';
+import '../../board/views/write_review_screen.dart';
+
+class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
 
   @override
-  State<LibraryScreen> createState() => _LibraryScreenState();
+  ConsumerState<LibraryScreen> createState() => _LibraryScreenState();
 }
 
-class _LibraryScreenState extends State<LibraryScreen> {
-  final user = FirebaseAuth.instance.currentUser;
-
+class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   // 🔹 책 위치 좌표 정의 (Shelf 디자인에 맞춤)
   final List<Map<String, double>> _bookPositions = [
     {'top': 193, 'left': (390 / 2) - (79 / 2) - 115.5}, // 1번 책
@@ -24,8 +24,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
   ];
 
   // 🔹 책 클릭 시: 독서 기록 및 리뷰 팝업
-  void _showBookOptionDialog(BookModel book, DocumentSnapshot purchaseDoc) {
-    int currentPage = purchaseDoc['currentPage'] ?? 0;
+  void _showBookOptionDialog(BookModel book, QueryDocumentSnapshot purchaseDoc) {
+    // Map 타입 캐스팅을 명시적으로 처리
+    final data = purchaseDoc.data() as Map<String, dynamic>?;
+    int currentPage = (data != null && data.containsKey('currentPage')) ? data['currentPage'] : 0;
+
+    // 페이지 입력용 컨트롤러
+    final TextEditingController pageController = TextEditingController(text: currentPage.toString());
 
     showDialog(
       context: context,
@@ -37,11 +42,32 @@ class _LibraryScreenState extends State<LibraryScreen> {
             children: [
               Text("현재 $currentPage 페이지까지 읽으셨습니다."),
               const SizedBox(height: 20),
+              TextField(
+                controller: pageController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: '수정할 페이지 입력',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                ),
+              ),
+              const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: () {
-                  // TODO: 페이지 업데이트 로직 (Dialog 띄워서 입력받기 등)
-                  // purchaseDoc.reference.update({'currentPage': newValue});
-                  Navigator.pop(context);
+                onPressed: () async {
+                  final newPage = int.tryParse(pageController.text.trim());
+                  if (newPage != null) {
+                    try {
+                      // Riverpod Controller를 통해 Firestore 업데이트
+                      await ref.read(libraryControllerProvider).updateCurrentPage(book.id, newPage);
+                      if (mounted) Navigator.pop(context); // 성공 시 닫기
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text("업데이트 실패: $e")),
+                        );
+                      }
+                    }
+                  }
                 },
                 child: const Text("독서 기록 수정"),
               ),
@@ -66,7 +92,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (user == null) return const Scaffold(body: Center(child: Text("로그인이 필요합니다.")));
+    // Riverpod 3.2.1: 구매 도서 목록 스트림 구독
+    final purchasedBooksAsync = ref.watch(purchasedBooksProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFC58152),
@@ -80,7 +107,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             decoration: const BoxDecoration(color: Color(0xFFC58152)),
             child: Stack(
               children: [
-                // 1. 배경 & 선반 이미지 (기존 코드 유지)
+                // 1. 배경 & 선반 이미지
                 Positioned(
                   top: 98, left: 0,
                   child: Container(
@@ -97,49 +124,48 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 // 2. 상단 바
                 _buildAppBar(context),
 
-                // 3. 🌟 [수정] 구매한 책 리스트 스트림 연결
-                StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(user!.uid)
-                      .collection('purchased_books')
-                      .orderBy('purchasedAt', descending: true)
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) return const SizedBox();
-
-                    final docs = snapshot.data!.docs;
+                // 3. 서재에 꽂힌 책들 (Riverpod 상태 반영)
+                purchasedBooksAsync.when(
+                  data: (snapshot) {
+                    final docs = snapshot.docs;
+                    if (docs.isEmpty) return const SizedBox(); // 비어있으면 표시 안함
 
                     return Stack(
                       children: List.generate(docs.length, (index) {
-                        if (index >= _bookPositions.length) return const SizedBox(); // 5권까지만 표시 (자리 부족)
+                        if (index >= _bookPositions.length) return const SizedBox(); // 5권까지만 표시
 
-                        var data = docs[index];
-                        // BookModel로 변환 (purchased_books에 저장된 필드 사용)
+                        var data = docs[index].data() as Map<String, dynamic>;
+
+                        // BookModel로 변환 (purchased_books에 저장된 필드 위주로 맵핑)
                         BookModel book = BookModel(
-                          id: data['id'],
-                          title: data['title'],
-                          imageUrl: data['imageUrl'],
-                          // 나머지 필드는 기본값 또는 저장된 값 사용
-                          rank: '', author: data['author'], rating: '', reviewCount: '', category: '',
+                          id: data['id'] ?? docs[index].id,
+                          title: data['title'] ?? '제목 없음',
+                          imageUrl: data['imageUrl'] ?? '',
+                          author: data['author'] ?? '작자 미상',
+                          rank: '', rating: '', reviewCount: '', category: '',
                         );
 
                         return Positioned(
                           top: _bookPositions[index]['top'],
                           left: _bookPositions[index]['left'],
                           child: GestureDetector(
-                            onTap: () => _showBookOptionDialog(book, data),
+                            onTap: () => _showBookOptionDialog(book, docs[index]),
                             child: Container(
                               width: 79,
                               height: 120,
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(2),
                                 boxShadow: [
-                                  BoxShadow(color: Colors.black.withOpacity(0.25), offset: const Offset(6, 8), blurRadius: 8),
+                                  BoxShadow(
+                                      color: Colors.black.withOpacity(0.25),
+                                      offset: const Offset(6, 8),
+                                      blurRadius: 8
+                                  ),
                                 ],
                                 image: DecorationImage(
                                   image: NetworkImage(book.imageUrl),
                                   fit: BoxFit.cover,
+                                  onError: (_, __) => const AssetImage('assets/images/placeholder.png'), // 에러 시 처리 추가
                                 ),
                               ),
                             ),
@@ -148,6 +174,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       }),
                     );
                   },
+                  loading: () => const Center(child: CircularProgressIndicator(color: Colors.white)),
+                  error: (error, stack) => Center(child: Text("오류: $error", style: const TextStyle(color: Colors.white))),
                 ),
               ],
             ),
@@ -157,7 +185,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  // _buildAppBar 메서드 수정 (context 인자 추가)
   Widget _buildAppBar(BuildContext context) {
     return Container(
       width: 390,
@@ -166,7 +193,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // 🔸 메인 탭이므로 뒤로가기 버튼 삭제
           const Text(
             '내 서재',
             style: TextStyle(
@@ -203,42 +229,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  // 책 위젯
-  Widget _buildBook({required double top, required double left, required String label}) {
-    return Positioned(
-      top: top,
-      left: left,
-      child: Container(
-        width: 79,
-        height: 120,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.25),
-              offset: const Offset(6, 8),
-              blurRadius: 8,
-            ),
-          ],
-        ),
-        child: Center(
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 10, color: Colors.grey),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // 선반 그림자/이미지 레이어
   Widget _buildShelfShadow({required double top, required double left}) {
     return Positioned(
       top: top,
       left: left,
-      child: Container(
+      child: SizedBox(
         width: 415,
         height: 415,
         child: Opacity(
