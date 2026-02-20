@@ -187,8 +187,12 @@ class AppRouter {
     // -----------------------------------------------------
       case postBoard:
         return MaterialPageRoute(builder: (_) => const PostBoardScreen());
+
+    // 🌟 [수정 완료] arguments로 넘어온 데이터를 PostModel로 변환해서 넘겨줌!
       case writePost:
-        return MaterialPageRoute(builder: (_) => const WritePostScreen());
+        final postToEdit = routeSettings.arguments as PostModel?;
+        return MaterialPageRoute(builder: (_) => WritePostScreen(editingPost: postToEdit));
+
       case writeReview:
       // 🌟 화면 이동 시 전달한 book 데이터를 받아서 리뷰 화면으로 넘겨줌
         final book = routeSettings.arguments as BookModel;

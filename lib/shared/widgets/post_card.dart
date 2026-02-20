@@ -1,22 +1,54 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Timestamp 등 UI 표시용
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:bookit_app/features/board/controllers/board_controller.dart';
 import 'package:bookit_app/features/board/models/post_model.dart';
-import 'package:bookit_app/features/board/repositories/board_repository.dart'; // 댓글 스트림용
+import 'package:bookit_app/features/board/repositories/board_repository.dart';
 import 'package:bookit_app/features/book/views/book_detail_screen.dart';
+
+import '../../../core/router/app_router.dart';
 
 class PostCard extends ConsumerWidget {
   final PostModel post;
 
   const PostCard({super.key, required this.post});
 
+  // 🌟 [추가됨] 작성 및 수정 시간을 계산해서 예쁜 문자열로 바꿔주는 함수
+  String _getTimeString(PostModel post) {
+    // 수정된 시간이 있으면 수정된 시간을 기준, 없으면 작성 시간 기준
+    final targetTime = post.updatedAt ?? post.createdAt;
+    final isEdited = post.updatedAt != null;
+
+    final now = DateTime.now();
+    final difference = now.difference(targetTime);
+
+    String timeText;
+    if (difference.inSeconds < 60) {
+      timeText = "방금 전";
+    } else if (difference.inMinutes < 60) {
+      timeText = "${difference.inMinutes}분 전";
+    } else if (difference.inHours < 24) {
+      timeText = "${difference.inHours}시간 전";
+    } else if (difference.inDays < 30) {
+      timeText = "${difference.inDays}일 전";
+    } else {
+      // 30일이 넘어가면 그냥 날짜(ex. 2026.01.25) 표기
+      timeText = "${targetTime.year}.${targetTime.month.toString().padLeft(2, '0')}.${targetTime.day.toString().padLeft(2, '0')}";
+    }
+
+    // 수정된 글이라면 뒤에 '수정됨'을 붙여줌
+    return isEdited ? "$timeText 수정됨" : timeText;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.read(boardControllerProvider);
     final user = FirebaseAuth.instance.currentUser;
     final isLiked = user != null && post.likedBy.contains(user.uid);
+
+    // 현재 로그인한 유저가 이 글의 작성자인지 확인
+    final isMyPost = user != null && user.uid == post.uid;
 
     return Container(
       width: double.infinity,
@@ -28,7 +60,7 @@ class PostCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. 헤더 (작성자)
+          // 1. 헤더 (작성자 + 더보기 메뉴)
           Row(
             children: [
               const CircleAvatar(
@@ -36,14 +68,41 @@ class PostCard extends ConsumerWidget {
                 child: Icon(Icons.person, color: Colors.white),
               ),
               const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(post.nickname, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
-                  // 시간 계산 로직은 별도 유틸로 빼면 좋음 (여기선 간단히)
-                  const Text("방금 전", style: TextStyle(fontSize: 12, color: Color(0xFF767676))),
-                ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(post.nickname, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
+                    // 🌟 [수정 완료] 하드코딩 지우고 시간 계산 함수 적용!
+                    Text(_getTimeString(post), style: const TextStyle(fontSize: 12, color: Color(0xFF767676))),
+                  ],
+                ),
               ),
+
+              // 내 글일 때만 보이는 우측 상단 더보기 메뉴
+              if (isMyPost)
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, color: Color(0xFF767676)),
+                  color: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  onSelected: (value) async {
+                    if (value == 'edit') {
+                      Navigator.pushNamed(context, AppRouter.writePost, arguments: post);
+                    } else if (value == 'delete') {
+                      _showDeleteConfirmDialog(context, ref, post.id);
+                    }
+                  },
+                  itemBuilder: (BuildContext context) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Text('수정하기', style: TextStyle(fontFamily: 'Pretendard', fontSize: 14)),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Text('삭제하기', style: TextStyle(fontFamily: 'Pretendard', fontSize: 14, color: Colors.red)),
+                    ),
+                  ],
+                ),
             ],
           ),
           const SizedBox(height: 20),
@@ -131,7 +190,47 @@ class PostCard extends ConsumerWidget {
     );
   }
 
-  // 🔹 책 정보 위젯 (UI 코드 분리)
+  // 삭제 확인 다이얼로그
+  void _showDeleteConfirmDialog(BuildContext context, WidgetRef ref, String postId) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('게시글 삭제', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          content: const Text('정말 이 게시글을 삭제하시겠습니까?\n삭제된 글은 복구할 수 없습니다.', style: TextStyle(fontSize: 15)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('취소', style: TextStyle(color: Colors.grey)),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                try {
+                  await ref.read(boardControllerProvider).deletePost(postId);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('게시글이 삭제되었습니다.')),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('삭제 실패: $e')),
+                    );
+                  }
+                }
+              },
+              child: const Text('삭제', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // 🔹 책 정보 위젯
   Widget _buildBookInfoCard(PostModel post) {
     return Container(
       height: 110,
@@ -206,7 +305,7 @@ class PostCard extends ConsumerWidget {
                           return ListTile(
                             contentPadding: EdgeInsets.zero,
                             title: Text(cData['content'] ?? ''),
-                            subtitle: Text("익명 · 방금 전", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            subtitle: const Text("익명", style: TextStyle(fontSize: 12, color: Colors.grey)),
                           );
                         },
                       );
@@ -229,7 +328,6 @@ class PostCard extends ConsumerWidget {
                           try {
                             await ref.read(boardControllerProvider).addComment(post.id, commentController.text);
                             commentController.clear();
-                            // 키보드 내리기 등 추가 UX 처리 가능
                           } catch (e) {
                             ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text("댓글 등록 실패")));
                           }

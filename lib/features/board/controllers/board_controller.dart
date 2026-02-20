@@ -72,7 +72,7 @@ class BoardController {
     );
   }
 
-  // 3. 🌟 [누락되었던 부분] 게시글 작성 기능
+  // 3. 게시글 작성 기능
   Future<void> writePost({
     required String content,
     required BookModel book,
@@ -114,7 +114,51 @@ class BoardController {
     await _repository.addPost(postData);
   }
 
-  // 4. 책 상세 정보 가져오기
+  // 🌟 4. [추가됨] 게시글 삭제 로직
+  Future<void> deletePost(String postId) async {
+    if (_currentUser == null) throw Exception("로그인이 필요합니다.");
+
+    // Repository에 삭제 위임
+    await _repository.deletePost(postId);
+  }
+
+  // 🌟 5. [추가됨] 게시글 수정 로직
+  Future<void> updatePost({
+    required String postId,
+    required String content,
+    BookModel? book, // 수정 시 책을 변경할 수도 있고 안 할 수도 있으므로 nullable
+  }) async {
+    if (_currentUser == null) throw Exception("로그인이 필요합니다.");
+
+    // (1) 내용이 바뀌었으니 해시태그 다시 추출
+    List<String> tags = _extractHashTags(content);
+    if (book != null && book.tags.isNotEmpty) {
+      tags.addAll(book.tags);
+    }
+    final finalTags = tags.toSet().toList();
+
+    // (2) 업데이트할 데이터 구성
+    final Map<String, dynamic> updateData = {
+      'content': content,
+      'tags': finalTags,
+      'updatedAt': FieldValue.serverTimestamp(), // 수정된 시간 기록
+    };
+
+    // 만약 책 정보도 변경했다면 추가로 업데이트
+    if (book != null) {
+      updateData['bookId'] = book.id;
+      updateData['bookTitle'] = book.title;
+      updateData['bookAuthor'] = book.author;
+      updateData['bookImageUrl'] = book.imageUrl;
+      updateData['bookRating'] = book.rating;
+      updateData['bookReviewCount'] = book.reviewCount;
+    }
+
+    // (3) DB 업데이트 요청
+    await _repository.updatePost(postId, updateData);
+  }
+
+  // 6. 책 상세 정보 가져오기
   Future<BookModel?> getBookDetail(String bookId) async {
     return await _repository.getBookById(bookId);
   }

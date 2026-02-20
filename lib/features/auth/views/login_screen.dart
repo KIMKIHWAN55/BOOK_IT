@@ -27,30 +27,46 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  // 🌟 이메일 로그인 로직
+// 🌟 이메일 로그인 로직
   Future<void> _handleEmailLogin() async {
+    // 1. 로그인 버튼 누르면 키보드부터 깔끔하게 내리기 (아까 본 로그 방지)
+    FocusScope.of(context).unfocus();
+
     final errorMessage = await ref.read(authControllerProvider.notifier).login(
       _emailController.text.trim(),
       _passwordController.text.trim(),
     );
 
-    if (mounted && errorMessage != null) {
-      // 에러가 났을 때만 스낵바를 띄웁니다.
-      // 성공했을 때는 main.dart가 알아서 화면을 바꿔주므로 Navigator 코드가 필요 없습니다!
+    if (!mounted) return; // 화면이 닫혔으면 중단
+
+    if (errorMessage != null) {
+      // 2. 에러가 났을 때 스낵바 띄우기
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(errorMessage)),
       );
+    } else {
+      // 🌟 3. [추가됨] 로그인이 성공(errorMessage == null)하면 메인 화면으로 강제 이동!
+      // 이전 인증 화면들을 싹 지우고(pushNamedAndRemoveUntil) 메인으로 갑니다.
+      Navigator.pushNamedAndRemoveUntil(context, AppRouter.main, (route) => false);
     }
   }
 
   // 🌟 구글 로그인 로직
   Future<void> _handleGoogleLogin() async {
+    // 구글 로그인창 뜨기 전에 키보드 내리기
+    FocusScope.of(context).unfocus();
+
     final errorMessage = await ref.read(authControllerProvider.notifier).loginWithGoogle();
 
-    if (mounted && errorMessage != null && errorMessage != 'cancel') {
+    if (!mounted) return; // 화면이 닫혔으면 중단
+
+    if (errorMessage != null && errorMessage != 'cancel') {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(errorMessage)),
       );
+    } else if (errorMessage == null) {
+      // 🌟 [추가됨] 구글 로그인 성공 시 메인 화면으로 강제 이동!
+      Navigator.pushNamedAndRemoveUntil(context, AppRouter.main, (route) => false);
     }
   }
 

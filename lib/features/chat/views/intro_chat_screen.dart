@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
+// 🌟 [추가] 분리해둔 공통 상단 바 위젯 Import
+import '../../../shared/widgets/custom_app_bar.dart';
+
 class IntroChatScreen extends StatelessWidget {
   const IntroChatScreen({super.key});
 
@@ -8,19 +11,13 @@ class IntroChatScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF2ECFF), // 배경: #F2ECFF
-      appBar: AppBar(
-        leading: IconButton(onPressed: () {}, icon: const Icon(Icons.menu)),
-        actions: [
-          IconButton(onPressed: () {}, icon: const Icon(Icons.search)),
-          IconButton(
-              onPressed: () => Navigator.pushNamed(context, '/cart'),
-              icon: const Icon(Icons.shopping_cart_outlined)),
-          IconButton(onPressed: () {}, icon: const Icon(Icons.notifications_none)),
-        ],
-        backgroundColor: const Color(0xFFEDE5FE), // Frame 47 배경
-        foregroundColor: Colors.black,
-        elevation: 0,
+
+      // 🌟 [수정 완료] 수십 줄의 상단 바 코드가 단 한 줄로 깔끔하게 정리되었습니다!
+      appBar: const CustomAppBar(
+        showCart: true, // 장바구니 아이콘 켜기
+        backgroundColor: Color(0xFFEDE5FE), // 배경색을 연한 보라색으로 덮어쓰기
       ),
+
       body: Stack(
         children: [
           // Component 9: 중앙 배경 레이어

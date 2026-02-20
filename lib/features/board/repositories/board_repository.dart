@@ -107,11 +107,21 @@ class BoardRepository {
   }
 
   // ======================================================================
-  // 4. 게시글 작성 관련 기능 (글쓰기 화면)
+  // 4. 게시글 작성/수정/삭제 관련 기능
   // ======================================================================
   // 게시글 저장
   Future<void> addPost(Map<String, dynamic> postData) async {
     await _firestore.collection('posts').add(postData);
+  }
+
+  // 🌟 [추가됨] 게시글 삭제
+  Future<void> deletePost(String postId) async {
+    await _firestore.collection('posts').doc(postId).delete();
+  }
+
+  // 🌟 [추가됨] 게시글 수정
+  Future<void> updatePost(String postId, Map<String, dynamic> updateData) async {
+    await _firestore.collection('posts').doc(postId).update(updateData);
   }
 
   // 책 목록 조회 (글쓰기 시 책 선택용)

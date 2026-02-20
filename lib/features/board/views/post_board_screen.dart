@@ -41,12 +41,23 @@ class _PostBoardScreenState extends ConsumerState<PostBoardScreen> with SingleTi
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        automaticallyImplyLeading: false,
+        // 🌟 수정됨: automaticallyImplyLeading: false 삭제 및 뒤로 가기 버튼 추가
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 20),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+        // 🌟 덤으로 화면 제목 추가 (선택 사항)
+        title: const Text(
+          '게시판',
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 17),
+        ),
+        centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.edit_square, color: Colors.black, size: 24),
             onPressed: () {
-              // 🌟 수정됨: AppRouter를 통한 안전한 화면 이동
               Navigator.pushNamed(context, AppRouter.writePost);
             },
           ),

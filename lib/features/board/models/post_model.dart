@@ -17,6 +17,9 @@ class PostModel {
   final List<String> likedBy;
   final DateTime createdAt;
 
+  // 🌟 [추가됨] 수정된 시간을 담을 필드 (수정 안 한 글도 있으니 nullable(?)로 선언)
+  final DateTime? updatedAt;
+
   PostModel({
     required this.id,
     required this.uid,
@@ -33,6 +36,7 @@ class PostModel {
     required this.commentCount,
     required this.likedBy,
     required this.createdAt,
+    this.updatedAt, // 🌟 [추가됨]
   });
 
   // Firestore 데이터를 객체로 변환
@@ -49,16 +53,17 @@ class PostModel {
       bookAuthor: data['bookAuthor'],
       bookImageUrl: data['bookImageUrl'],
 
-      // 🌟 [수정됨] 글자(String)로 들어오든 숫자(int/double)로 들어오든 안전하게 숫자로 변환
+      // 🌟 글자(String)로 들어오든 숫자(int/double)로 들어오든 안전하게 숫자로 변환
       bookRating: double.tryParse(data['bookRating']?.toString() ?? '0') ?? 0.0,
-
-      // 🌟 [추가 팁] 리뷰 카운트나 다른 숫자들도 비슷하게 처리해주면 훨씬 안전합니다.
       bookReviewCount: int.tryParse(data['bookReviewCount']?.toString() ?? '0') ?? 0,
       likeCount: int.tryParse(data['likeCount']?.toString() ?? '0') ?? 0,
       commentCount: int.tryParse(data['commentCount']?.toString() ?? '0') ?? 0,
 
       likedBy: List<String>.from(data['likedBy'] ?? []),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+
+      // 🌟 [추가됨] Firestore의 updatedAt을 DateTime으로 변환 (없으면 null 반환)
+      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
     );
   }
 }

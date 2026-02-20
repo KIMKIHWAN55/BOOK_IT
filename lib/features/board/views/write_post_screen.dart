@@ -2,20 +2,52 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../book/models/book_model.dart';
 import '../controllers/board_controller.dart';
+// 🌟 PostModel 임포트 추가 (수정할 때 데이터를 넘겨받기 위함)
+import '../models/post_model.dart';
 
 class WritePostScreen extends ConsumerStatefulWidget {
-  const WritePostScreen({super.key});
+  // 🌟 [추가됨] 수정 모드일 때 전달받을 기존 게시글 데이터
+  final PostModel? editingPost;
+
+  const WritePostScreen({super.key, this.editingPost});
 
   @override
   ConsumerState<WritePostScreen> createState() => _WritePostScreenState();
 }
 
 class _WritePostScreenState extends ConsumerState<WritePostScreen> {
-  final TextEditingController _contentController = TextEditingController();
-
-  // UI 상태 (선택된 책)
+  late TextEditingController _contentController;
   BookModel? _selectedBook;
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // 🌟 1. 글 내용 미리 채워 넣기 (수정 모드면 기존 글, 아니면 빈칸)
+    _contentController = TextEditingController(
+        text: widget.editingPost?.content ?? ''
+    );
+
+    // 🌟 2. 기존에 추천했던 책 미리 세팅하기
+    if (widget.editingPost != null && widget.editingPost!.bookId != null) {
+      // 기존 글에 책이 있었다면 화면에 보여주기 위해 임시 BookModel 생성
+      _selectedBook = BookModel(
+        id: widget.editingPost!.bookId!,
+        title: widget.editingPost!.bookTitle ?? '',
+        author: widget.editingPost!.bookAuthor ?? '',
+        imageUrl: widget.editingPost!.bookImageUrl ?? '',
+        rating: widget.editingPost!.bookRating.toString(),
+        reviewCount: widget.editingPost!.bookReviewCount.toString(),
+
+        // 🌟 에러 방지용 필수 파라미터 및 기본값 할당
+        rank: '',
+        tags: [],
+        description: '',
+        category: '',
+      );
+    }
+  } // 🌟 누락되었던 initState 닫는 괄호 추가!
 
   @override
   void dispose() {
@@ -23,12 +55,13 @@ class _WritePostScreenState extends ConsumerState<WritePostScreen> {
     super.dispose();
   }
 
-  // 💾 게시글 저장 요청 (Controller 호출)
+  // 💾 게시글 저장(또는 수정) 요청 (Controller 호출)
   Future<void> _handleSavePost() async {
     if (_contentController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('내용을 입력해주세요.')));
       return;
     }
+
     if (_selectedBook == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('책을 선택해주세요.')));
       return;
@@ -37,13 +70,28 @@ class _WritePostScreenState extends ConsumerState<WritePostScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // 🌟 Controller에게 저장 위임
-      await ref.read(boardControllerProvider).writePost(
-        content: _contentController.text,
-        book: _selectedBook!,
-      );
+      if (widget.editingPost != null) {
+        // 🌟 [수정 모드] updatePost 호출
+        await ref.read(boardControllerProvider).updatePost(
+          postId: widget.editingPost!.id,
+          content: _contentController.text,
+          book: _selectedBook,
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('게시글이 수정되었습니다.')));
+        }
+      } else {
+        // 🌟 [작성 모드] writePost 호출
+        await ref.read(boardControllerProvider).writePost(
+          content: _contentController.text,
+          book: _selectedBook!,
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('새 게시글이 등록되었습니다.')));
+        }
+      }
 
-      if (mounted) Navigator.pop(context); // 성공 시 닫기
+      if (mounted) Navigator.pop(context); // 성공 시 화면 닫기
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('에러: $e')));
     } finally {
@@ -66,7 +114,6 @@ class _WritePostScreenState extends ConsumerState<WritePostScreen> {
               const Text("책 선택하기", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
               Expanded(
-                // 🌟 StreamBuilder 대신 Consumer 위젯 사용
                 child: Consumer(
                   builder: (context, ref, _) {
                     final booksAsync = ref.watch(booksProvider);
@@ -126,6 +173,10 @@ class _WritePostScreenState extends ConsumerState<WritePostScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 🌟 화면 제목과 버튼 텍스트를 모드에 따라 다르게 설정
+    final screenTitle = widget.editingPost != null ? "글 수정하기" : "글쓰기";
+    final buttonTitle = widget.editingPost != null ? "수정 하기" : "작성 하기";
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -136,7 +187,7 @@ class _WritePostScreenState extends ConsumerState<WritePostScreen> {
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 24),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text("글쓰기", style: TextStyle(fontFamily: 'Pretendard', fontSize: 20, fontWeight: FontWeight.w600, color: Colors.black)),
+        title: Text(screenTitle, style: const TextStyle(fontFamily: 'Pretendard', fontSize: 20, fontWeight: FontWeight.w600, color: Colors.black)),
       ),
       body: Stack(
         children: [
@@ -224,11 +275,12 @@ class _WritePostScreenState extends ConsumerState<WritePostScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 100),
+                const SizedBox(height: 100), // 하단 버튼이 가리지 않도록 여백 추가
               ],
             ),
           ),
-          // 3. 작성하기 버튼
+
+          // 3. 작성하기/수정하기 버튼
           Positioned(
             left: 16, right: 16, bottom: 34,
             child: GestureDetector(
@@ -239,7 +291,7 @@ class _WritePostScreenState extends ConsumerState<WritePostScreen> {
                 alignment: Alignment.center,
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text("작성 하기", style: TextStyle(fontFamily: 'Pretendard', fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white)),
+                    : Text(buttonTitle, style: const TextStyle(fontFamily: 'Pretendard', fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white)),
               ),
             ),
           ),
