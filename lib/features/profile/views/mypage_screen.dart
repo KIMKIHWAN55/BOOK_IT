@@ -13,6 +13,7 @@ import '../../board/controllers/board_controller.dart';
 import 'package:bookit_app/shared/widgets/post_card.dart';
 import '../../book/models/book_model.dart';
 import '../../book/views/book_detail_screen.dart';
+import '../../../core/router/app_router.dart';
 
 // 🌟 [추가] 분리해둔 공통 상단 바 위젯 Import
 import '../../../shared/widgets/custom_app_bar.dart';
@@ -173,6 +174,19 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> with SingleTickerPr
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: const [
                     Text('도서 수정', style: TextStyle(fontFamily: 'Pretendard', fontSize: 18, fontWeight: FontWeight.w500, color: Color(0xFF222222))),
+                    Icon(Icons.chevron_right, size: 24, color: Colors.black),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            GestureDetector(
+              onTap: () => Navigator.pushNamed(context, AppRouter.adminPromotion), // AppRouter 사용!
+              child: _buildInfoCard(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: const [
+                    Text('추천 도서 관리', style: TextStyle(fontFamily: 'Pretendard', fontSize: 18, fontWeight: FontWeight.w500, color: Color(0xFF222222))),
                     Icon(Icons.chevron_right, size: 24, color: Colors.black),
                   ],
                 ),

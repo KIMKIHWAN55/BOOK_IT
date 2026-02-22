@@ -57,19 +57,25 @@ class BoardController {
     );
   }
 
-  // 2. 댓글 작성 로직
-  Future<void> addComment(String postId, String content) async {
+// 2. 댓글 작성 로직 (🌟 parentId 추가)
+  Future<void> addComment(String postId, String content, {String? parentId}) async {
     if (_currentUser == null) throw Exception("로그인이 필요합니다.");
 
-    // 사용자 닉네임 가져오기
     final nickname = await _repository.getUserNickname(_currentUser!.uid);
 
     await _repository.addComment(
-        postId: postId,
-        uid: _currentUser!.uid,
-        nickname: nickname,
-        content: content
+      postId: postId,
+      uid: _currentUser!.uid,
+      nickname: nickname,
+      content: content,
+      parentId: parentId, // 대댓글 지원
     );
+  }
+
+  // 🌟 [추가됨] 댓글 삭제 로직 (소프트 삭제)
+  Future<void> deleteComment(String postId, String commentId) async {
+    if (_currentUser == null) throw Exception("로그인이 필요합니다.");
+    await _repository.softDeleteComment(postId, commentId);
   }
 
   // 3. 게시글 작성 기능

@@ -14,9 +14,8 @@ class PostCard extends ConsumerWidget {
 
   const PostCard({super.key, required this.post});
 
-  // 🌟 [추가됨] 작성 및 수정 시간을 계산해서 예쁜 문자열로 바꿔주는 함수
+  // 🌟 작성 및 수정 시간을 계산해서 예쁜 문자열로 바꿔주는 함수
   String _getTimeString(PostModel post) {
-    // 수정된 시간이 있으면 수정된 시간을 기준, 없으면 작성 시간 기준
     final targetTime = post.updatedAt ?? post.createdAt;
     final isEdited = post.updatedAt != null;
 
@@ -33,11 +32,9 @@ class PostCard extends ConsumerWidget {
     } else if (difference.inDays < 30) {
       timeText = "${difference.inDays}일 전";
     } else {
-      // 30일이 넘어가면 그냥 날짜(ex. 2026.01.25) 표기
       timeText = "${targetTime.year}.${targetTime.month.toString().padLeft(2, '0')}.${targetTime.day.toString().padLeft(2, '0')}";
     }
 
-    // 수정된 글이라면 뒤에 '수정됨'을 붙여줌
     return isEdited ? "$timeText 수정됨" : timeText;
   }
 
@@ -73,7 +70,6 @@ class PostCard extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(post.nickname, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
-                    // 🌟 [수정 완료] 하드코딩 지우고 시간 계산 함수 적용!
                     Text(_getTimeString(post), style: const TextStyle(fontSize: 12, color: Color(0xFF767676))),
                   ],
                 ),
@@ -272,76 +268,237 @@ class PostCard extends ConsumerWidget {
     );
   }
 
-  // 🔹 댓글 바텀시트
+  // 🌟 [수정됨] 기존에 길었던 코드를 지우고, 새로 만든 분리된 위젯을 호출하도록 변경
   void _showCommentSheet(BuildContext context, WidgetRef ref, PostModel post) {
-    final commentController = TextEditingController();
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-          child: Container(
-            height: 400,
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                const Text("댓글 남기기", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 10),
-                Expanded(
-                  child: StreamBuilder<QuerySnapshot>(
-                    stream: ref.read(boardRepositoryProvider).getCommentsStream(post.id),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                        return const Center(child: Text("첫 댓글을 남겨보세요!"));
-                      }
-                      final comments = snapshot.data!.docs;
-                      return ListView.builder(
-                        itemCount: comments.length,
-                        itemBuilder: (context, index) {
-                          final cData = comments[index].data() as Map<String, dynamic>;
-                          return ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(cData['content'] ?? ''),
-                            subtitle: const Text("익명", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                          );
-                        },
+      builder: (ctx) => CommentBottomSheet(post: post),
+    );
+  }
+}
+
+// ======================================================================
+// 🌟 [새로 추가됨] 대댓글과 삭제 기능이 포함된 완벽한 댓글 바텀시트 위젯
+// ======================================================================
+class CommentBottomSheet extends ConsumerStatefulWidget {
+  final PostModel post;
+  const CommentBottomSheet({super.key, required this.post});
+
+  @override
+  ConsumerState<CommentBottomSheet> createState() => _CommentBottomSheetState();
+}
+
+class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
+  final TextEditingController _commentController = TextEditingController();
+
+  // 대댓글 작성을 위한 상태 변수
+  String? _replyingToCommentId; // 어떤 댓글에 답글을 다는지
+  String? _replyingToNickname;  // 누구에게 답글을 다는지 (UI 표시용)
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
+
+  // 시간 계산 헬퍼
+  String _getTimeString(DateTime time) {
+    final difference = DateTime.now().difference(time);
+    if (difference.inSeconds < 60) return "방금 전";
+    if (difference.inMinutes < 60) return "${difference.inMinutes}분 전";
+    if (difference.inHours < 24) return "${difference.inHours}시간 전";
+    if (difference.inDays < 30) return "${difference.inDays}일 전";
+    return "${time.year}.${time.month.toString().padLeft(2, '0')}.${time.day.toString().padLeft(2, '0')}";
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        height: MediaQuery.of(context).size.height * 0.7, // 넉넉한 높이
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("댓글", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+
+            // 1. 댓글 리스트
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: ref.read(boardRepositoryProvider).getCommentsStream(widget.post.id),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return const Center(child: Text("첫 댓글을 남겨보세요!", style: TextStyle(color: Colors.grey)));
+                  }
+
+                  final allDocs = snapshot.data!.docs;
+
+                  // 🌟 부모 댓글과 대댓글 분리 및 정렬 로직
+                  final parentComments = allDocs.where((doc) => (doc.data() as Map<String, dynamic>)['parentId'] == null).toList();
+                  final childComments = allDocs.where((doc) => (doc.data() as Map<String, dynamic>)['parentId'] != null).toList();
+
+                  // 화면에 그릴 순서대로 리스트 재조립 (부모 -> 자식1 -> 자식2 -> 부모2...)
+                  List<QueryDocumentSnapshot> displayList = [];
+                  for (var parent in parentComments) {
+                    displayList.add(parent);
+                    displayList.addAll(childComments.where((child) => (child.data() as Map<String, dynamic>)['parentId'] == parent.id));
+                  }
+
+                  return ListView.builder(
+                    itemCount: displayList.length,
+                    itemBuilder: (context, index) {
+                      final doc = displayList[index];
+                      final cData = doc.data() as Map<String, dynamic>;
+                      final isChild = cData['parentId'] != null;
+                      final isDeleted = cData['isDeleted'] == true;
+                      final isMyComment = currentUserId == cData['uid'];
+
+                      final createdAt = (cData['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+
+                      return Container(
+                        // 🌟 대댓글이면 왼쪽 여백을 주어 들여쓰기 효과
+                        padding: EdgeInsets.only(left: isChild ? 40 : 0, top: 12, bottom: 12),
+                        decoration: BoxDecoration(
+                          border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (isChild) const Icon(Icons.subdirectory_arrow_right, size: 16, color: Colors.grey),
+                            if (isChild) const SizedBox(width: 8),
+
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // 닉네임 & 시간 & 삭제 버튼
+                                  Row(
+                                    children: [
+                                      Text(cData['nickname'] ?? '익명', style: TextStyle(fontWeight: FontWeight.w600, color: isDeleted ? Colors.grey : Colors.black)),
+                                      const SizedBox(width: 8),
+                                      Text(_getTimeString(createdAt), style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                      const Spacer(),
+                                      // 🌟 내 댓글이고 삭제되지 않은 상태일 때만 '삭제' 버튼 표시
+                                      if (isMyComment && !isDeleted)
+                                        GestureDetector(
+                                          onTap: () async {
+                                            await ref.read(boardControllerProvider).deleteComment(widget.post.id, doc.id);
+                                          },
+                                          child: const Text("삭제", style: TextStyle(fontSize: 12, color: Colors.red)),
+                                        )
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+
+                                  // 내용 (삭제된 글이면 회색 처리)
+                                  Text(
+                                    cData['content'] ?? '',
+                                    style: TextStyle(
+                                      color: isDeleted ? Colors.grey : const Color(0xFF222222),
+                                      fontStyle: isDeleted ? FontStyle.italic : FontStyle.normal,
+                                    ),
+                                  ),
+
+                                  // 🌟 부모 댓글이고, 삭제되지 않았을 때만 '답글 달기' 버튼 표시
+                                  if (!isChild && !isDeleted)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 8),
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            _replyingToCommentId = doc.id;
+                                            _replyingToNickname = cData['nickname'];
+                                          });
+                                        },
+                                        child: const Text("답글 달기", style: TextStyle(fontSize: 12, color: Color(0xFF767676), fontWeight: FontWeight.bold)),
+                                      ),
+                                    )
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       );
                     },
-                  ),
-                ),
-                Row(
+                  );
+                },
+              ),
+            ),
+
+            // 2. 대댓글 작성 중일 때 표시되는 상태 바
+            if (_replyingToCommentId != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+                child: Row(
                   children: [
-                    Expanded(
-                      child: TextField(
-                        controller: commentController,
-                        decoration: const InputDecoration(hintText: "댓글을 입력하세요...", border: OutlineInputBorder()),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD45858)),
-                      onPressed: () async {
-                        if (commentController.text.isNotEmpty) {
-                          try {
-                            await ref.read(boardControllerProvider).addComment(post.id, commentController.text);
-                            commentController.clear();
-                          } catch (e) {
-                            ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text("댓글 등록 실패")));
-                          }
-                        }
-                      },
-                      child: const Text("등록"),
-                    ),
+                    Text("$_replyingToNickname님에게 답글 남기는 중...", style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () => setState(() {
+                        _replyingToCommentId = null;
+                        _replyingToNickname = null;
+                      }),
+                      child: const Icon(Icons.close, size: 16),
+                    )
                   ],
                 ),
+              ),
+
+            // 3. 댓글 입력창
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _commentController,
+                    decoration: InputDecoration(
+                      hintText: _replyingToCommentId != null ? "답글을 입력하세요..." : "댓글을 남겨보세요...",
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
+                      filled: true,
+                      fillColor: const Color(0xFFF1F1F5),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () async {
+                    if (_commentController.text.trim().isNotEmpty) {
+                      try {
+                        await ref.read(boardControllerProvider).addComment(
+                          widget.post.id,
+                          _commentController.text.trim(),
+                          parentId: _replyingToCommentId, // 🌟 대댓글이면 ID 전달
+                        );
+                        _commentController.clear();
+                        setState(() {
+                          _replyingToCommentId = null;
+                          _replyingToNickname = null;
+                        });
+                        FocusScope.of(context).unfocus();
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("등록 실패")));
+                      }
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: const BoxDecoration(color: Color(0xFFD45858), shape: BoxShape.circle),
+                    child: const Icon(Icons.send, color: Colors.white, size: 20),
+                  ),
+                )
               ],
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 }

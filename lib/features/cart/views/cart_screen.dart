@@ -235,6 +235,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           final selectedItems = items
               .where((item) => _selectedItemIds.contains(item.id))
               .map((item) => {
+            'id': item.id,
             'title': item.title,
             'author': item.author,
             'imageUrl': item.imageUrl,

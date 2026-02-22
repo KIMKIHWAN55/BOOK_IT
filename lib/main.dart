@@ -23,8 +23,8 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-// 🚨 [수정] 개발(테스트) 중에는 App Check가 에뮬레이터에서 작동하지 않으므로 잠시 꺼둡니다!
-  // (나중에 앱 출시할 때 주석을 해제하시면 됩니다)
+//  [수정] 개발(테스트) 중에는 App Check가 에뮬레이터에서 작동하지 않으므로 잠시 꺼둠
+  // 나중에 앱 출시할때 주석해제
   /*
   await FirebaseAppCheck.instance.activate(
     androidProvider: AndroidProvider.playIntegrity,
@@ -51,7 +51,7 @@ class BookitApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 🌟 핵심: Firebase 로그인 상태 실시간 감시 (인증 반응형 라우팅)
+    //  Firebase 로그인 상태 실시간 감시 (인증 반응형 라우팅)
     final authState = ref.watch(authStateProvider);
 
     return MaterialApp(
@@ -71,10 +71,10 @@ class BookitApp extends ConsumerWidget {
           ),
         ),
       ),
-      // 🌟 상태에 따른 자동 화면 분기 (초기 화면 설정)
+      //  상태에 따른 자동 화면 분기 (초기 화면 설정)
       home: _getHomeWidget(authState),
 
-      // 우리가 만든 AppRouter 연결
+      //  AppRouter 연결
       onGenerateRoute: AppRouter.generateRoute,
     );
   }

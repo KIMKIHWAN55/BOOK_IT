@@ -79,4 +79,11 @@ class AdminRepository {
       throw Exception('책 삭제 실패: $e');
     }
   }
+  // 🌟 주간 추천 도서(promotions) 업데이트
+  Future<void> updateWeeklyRecommend(List<String> bookIds) async {
+    await _firestore.collection('promotions').doc('weekly_recommend').set({
+      'bookIds': bookIds,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
 }

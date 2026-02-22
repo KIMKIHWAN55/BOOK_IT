@@ -41,7 +41,7 @@ class _WritePostScreenState extends ConsumerState<WritePostScreen> {
         reviewCount: widget.editingPost!.bookReviewCount.toString(),
 
         // 🌟 에러 방지용 필수 파라미터 및 기본값 할당
-        rank: '',
+        rank: 0,
         tags: [],
         description: '',
         category: '',

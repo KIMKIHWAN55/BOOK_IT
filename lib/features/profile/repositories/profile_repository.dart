@@ -129,4 +129,17 @@ class ProfileRepository {
     // 계정 삭제
     await user.delete();
   }
+  // 🌟 [추가] 닉네임 중복 검사 로직
+  Future<bool> checkNicknameDuplicate(String nickname) async {
+    final user = _auth.currentUser;
+    final query = await _firestore.collection('users').where('nickname', isEqualTo: nickname).get();
+
+    for (var doc in query.docs) {
+      // 검색된 닉네임이 내 것이 아니라 다른 사람의 것이라면 중복!
+      if (doc.id != user?.uid) {
+        return true;
+      }
+    }
+    return false; // 사용 가능
+  }
 }

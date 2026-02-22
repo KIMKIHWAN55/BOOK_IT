@@ -14,6 +14,8 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  // 🌟 [수정 2] 추천 도서의 현재 페이지를 기억하는 상태 변수 추가
+  int _currentRecommendIndex = 0;
 
   TextStyle _ptStyle({
     required double size,
@@ -73,7 +75,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  // (아래 _buildTopRecommendation, _buildBestSellerList 등은 기존 코드 그대로 유지)
   Widget _buildTopRecommendation(List<dynamic> books) {
     return Container(
       width: double.infinity,
@@ -97,11 +98,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 : PageView.builder(
               itemCount: books.length,
               controller: PageController(viewportFraction: 0.6),
-              itemBuilder: (context, index) => _buildPickCard(books[index].imageUrl),
+              // 🌟 [수정 2] 스와이프할 때마다 번호 상태 업데이트
+              onPageChanged: (index) {
+                setState(() {
+                  _currentRecommendIndex = index;
+                });
+              },
+              // 🌟 [수정 1] 책 표지를 누르면 상세 페이지로 넘어가도록 감싸기
+              itemBuilder: (context, index) => GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => BookDetailScreen(book: books[index]),
+                    ),
+                  );
+                },
+                child: _buildPickCard(books[index].imageUrl),
+              ),
             ),
           ),
           const SizedBox(height: 20),
-          Text('${books.isEmpty ? 0 : 1} / ${books.length}', style: _ptStyle(size: 16, weight: FontWeight.w600, color: Colors.white)),
+          // 🌟 [수정 2] 페이지 번호가 고정되지 않고 실제 스크롤에 맞춰서 움직이게 변경!
+          Text(
+            '${books.isEmpty ? 0 : _currentRecommendIndex + 1} / ${books.length}',
+            style: _ptStyle(size: 16, weight: FontWeight.w600, color: Colors.white),
+          ),
         ],
       ),
     );
@@ -127,7 +149,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             );
           },
           child: _buildBestsellerItem(
-            rank: book.rank,
+            rank: book.rank.toString(),
             title: book.title,
             author: book.author,
             imageUrl: book.imageUrl,
@@ -148,7 +170,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(6),
-        child: Image.network(imageUrl, fit: BoxFit.cover),
+        child: Image.network(
+          imageUrl,
+          fit: BoxFit.cover,
+          // 🌟 [수정 3] 이미지 로딩 실패 시 앱이 터지지 않도록 방어 코드 추가
+          errorBuilder: (context, error, stackTrace) => Container(
+            color: Colors.grey[300],
+            child: const Icon(Icons.book, color: Colors.grey, size: 40),
+          ),
+        ),
       ),
     );
   }
@@ -167,7 +197,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
-            child: Image.network(imageUrl, width: 73, height: 110, fit: BoxFit.cover),
+            child: Image.network(
+              imageUrl,
+              width: 73,
+              height: 110,
+              fit: BoxFit.cover,
+              // 🌟 [수정 3] 이미지 로딩 실패 시 앱이 터지지 않도록 방어 코드 추가
+              errorBuilder: (context, error, stackTrace) => Container(
+                width: 73,
+                height: 110,
+                color: Colors.grey[300],
+                child: const Icon(Icons.book, color: Colors.grey),
+              ),
+            ),
           ),
           const SizedBox(width: 27),
           Text(rank, style: _ptStyle(size: 20, weight: FontWeight.w600)),

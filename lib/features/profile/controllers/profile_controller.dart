@@ -32,6 +32,10 @@ class ProfileActionController {
     return await ref.read(profileRepositoryProvider).getBookDetail(bookId);
   }
 
+  Future<bool> checkNicknameDuplicate(String nickname) async {
+    return await ref.read(profileRepositoryProvider).checkNicknameDuplicate(nickname);
+  }
+
   // 🌟 [추가] 로그아웃 액션
   Future<void> logout() async {
     await ref.read(profileRepositoryProvider).logout();

@@ -44,6 +44,7 @@ import '../../features/profile/views/liked_books_screen.dart';
 // -----------------------------------------------------------------------------
 import '../../features/admin/views/admin_add_book_screen.dart';
 import '../../features/admin/views/admin_book_list_screen.dart';
+import '../../features/admin/views/admin_promotion_screen.dart';
 
 // -----------------------------------------------------------------------------
 // 🌟 7. Board (게시판 및 글쓰기) 화면 [추가됨]
@@ -89,6 +90,7 @@ class AppRouter {
   // Admin
   static const String adminAddBook = '/admin_add_book';
   static const String adminBookList = '/admin_book_list';
+  static const String adminPromotion = '/admin_promotion';
 
   // 🌟 Board [추가됨]
   static const String postBoard = '/post_board';
@@ -181,6 +183,8 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const AdminAddBookScreen());
       case adminBookList:
         return MaterialPageRoute(builder: (_) => const AdminBookListScreen());
+      case adminPromotion:
+        return MaterialPageRoute(builder: (_) => const AdminPromotionScreen());
 
     // -----------------------------------------------------
     // 🌟 [게시판 및 글쓰기 관련 추가]

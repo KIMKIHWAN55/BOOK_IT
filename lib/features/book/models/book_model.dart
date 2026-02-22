@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class BookModel {
   final String id;
-  final String rank;
+  final int rank;
   final String title;
   final String author;
   final String imageUrl;
@@ -37,7 +37,7 @@ class BookModel {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     return BookModel(
       id: doc.id,
-      rank: data['rank'] ?? '',
+      rank: int.tryParse(data['rank']?.toString() ?? '0') ?? 0,
       title: data['title'] ?? '',
       author: data['author'] ?? '',
       imageUrl: data['imageUrl'] ?? '',
@@ -79,7 +79,7 @@ class BookModel {
   // 🌟 [추가됨] 리버팟 상태 관리 및 데이터 수정 시 필수 (불변 객체 패턴)
   BookModel copyWith({
     String? id,
-    String? rank,
+    int? rank,
     String? title,
     String? author,
     String? imageUrl,

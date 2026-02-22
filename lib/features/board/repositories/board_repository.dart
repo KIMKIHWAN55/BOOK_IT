@@ -70,33 +70,42 @@ class BoardRepository {
   }
 
   // ======================================================================
-  // 3. 댓글 관련 기능
+// 3. 댓글 관련 기능
   // ======================================================================
-  // 댓글 작성
+  // 🌟 댓글 & 대댓글 작성 (parentId가 있으면 대댓글)
   Future<void> addComment({
     required String postId,
     required String uid,
     required String nickname,
     required String content,
+    String? parentId, // 대댓글용 부모 ID
   }) async {
     final postRef = _firestore.collection('posts').doc(postId);
     final batch = _firestore.batch();
 
-    // 댓글 서브컬렉션에 추가
     final commentRef = postRef.collection('comments').doc();
     batch.set(commentRef, {
       'content': content,
       'uid': uid,
       'nickname': nickname,
       'createdAt': FieldValue.serverTimestamp(),
+      'parentId': parentId, // 부모가 없으면 null (일반 댓글)
+      'isDeleted': false,   // 삭제 여부
     });
 
-    // 게시글 문서의 댓글 카운트 증가
     batch.update(postRef, {
       'commentCount': FieldValue.increment(1),
     });
 
     await batch.commit();
+  }
+
+  // 🌟 [추가됨] 댓글 소프트 삭제 (내용만 가리기)
+  Future<void> softDeleteComment(String postId, String commentId) async {
+    await _firestore.collection('posts').doc(postId).collection('comments').doc(commentId).update({
+      'content': '삭제된 댓글입니다.',
+      'isDeleted': true,
+    });
   }
 
   // 댓글 목록 조회 (오래된 순)
@@ -114,9 +123,25 @@ class BoardRepository {
     await _firestore.collection('posts').add(postData);
   }
 
-  // 🌟 [추가됨] 게시글 삭제
+// 🌟 [업그레이드된 삭제 로직] 게시글 삭제 시 하위 댓글도 함께 깔끔하게 청소!
   Future<void> deletePost(String postId) async {
-    await _firestore.collection('posts').doc(postId).delete();
+    final postRef = _firestore.collection('posts').doc(postId);
+
+    // 1. 해당 게시글에 달린 모든 댓글 가져오기
+    final commentsSnapshot = await postRef.collection('comments').get();
+
+    final batch = _firestore.batch();
+
+    // 2. 게시글 본문 삭제 예약
+    batch.delete(postRef);
+
+    // 3. 댓글들도 모두 삭제 예약
+    for (var doc in commentsSnapshot.docs) {
+      batch.delete(doc.reference);
+    }
+
+    // 4. 한 번에(트랜잭션처럼) 실행!
+    await batch.commit();
   }
 
   // 🌟 [추가됨] 게시글 수정

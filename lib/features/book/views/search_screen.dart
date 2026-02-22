@@ -1,3 +1,4 @@
+import 'dart:async'; // 🌟 디바운스(Timer)를 위해 추가
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -16,7 +17,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchText = "";
 
-  // 🔹 피그마 텍스트 스타일 공통 함수
+  // 🌟 [추가 1] 디바운스를 위한 타이머 변수
+  Timer? _debounce;
+
   TextStyle _ptStyle({
     required double size,
     required FontWeight weight,
@@ -33,8 +36,20 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   @override
   void dispose() {
+    _debounce?.cancel(); // 🌟 화면이 꺼질 때 타이머도 끄기
     _searchController.dispose();
     super.dispose();
+  }
+
+  // 🌟 [추가 2] 타자 칠 때마다 즉시 검색하지 않고 0.3초 대기하는 함수
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      setState(() {
+        _searchText = query;
+      });
+    });
   }
 
   @override
@@ -64,11 +79,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ),
               child: TextField(
                 controller: _searchController,
-                onChanged: (value) {
-                  setState(() {
-                    _searchText = value;
-                  });
-                },
+                onChanged: _onSearchChanged, // 🌟 디바운스 함수 연결
                 decoration: InputDecoration(
                   hintText: '찾고 싶은 책, 작가, 장르를 입력해주세요',
                   hintStyle: _ptStyle(
@@ -79,6 +90,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     padding: EdgeInsets.only(left: 12, right: 8),
                     child: Icon(Icons.search, color: Color(0xFF767676), size: 24),
                   ),
+                  // 🌟 [추가 3] 글자가 있을 때만 나타나는 원클릭 지우기 버튼
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                    icon: const Icon(Icons.cancel, color: Colors.grey, size: 20),
+                    onPressed: () {
+                      _searchController.clear();
+                      _onSearchChanged(''); // 검색어 초기화
+                      FocusScope.of(context).unfocus(); // 키보드 내리기
+                    },
+                  )
+                      : null,
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(vertical: 12),
                 ),
@@ -99,20 +121,25 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
-  // 검색 결과 위젯 (Riverpod 상태 구독)
   Widget _buildSearchResults() {
     final booksAsync = ref.watch(allBooksProvider);
 
     return booksAsync.when(
       data: (allBooks) {
-        // 앱 내부에서 'contains'를 사용하여 중간 글자까지 검색되도록 필터링합니다.
+        final searchLower = _searchText.toLowerCase();
+
         final books = allBooks.where((book) {
           final titleLower = book.title.toLowerCase();
-          final searchLower = _searchText.toLowerCase();
           final authorLower = book.author.toLowerCase();
 
-          // 제목 또는 작가 이름에 검색어가 '포함'되어 있으면 결과에 추가
-          return titleLower.contains(searchLower) || authorLower.contains(searchLower);
+          // 🌟 [추가 4] 책의 태그(장르) 배열도 하나의 문자열로 합쳐서 검색 대상에 포함!
+          final tagsLower = book.tags.join(" ").toLowerCase();
+          final categoryLower = book.category.toLowerCase();
+
+          return titleLower.contains(searchLower) ||
+              authorLower.contains(searchLower) ||
+              tagsLower.contains(searchLower) ||
+              categoryLower.contains(searchLower);
         }).toList();
 
         if (books.isEmpty) {
@@ -126,6 +153,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             final book = books[index];
             return GestureDetector(
               onTap: () {
+                // 키보드 내리고 이동
+                FocusScope.of(context).unfocus();
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -143,7 +172,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
-  // --- 3. 검색 결과 아이템 ---
   Widget _buildSearchResultItem(BookModel book) {
     return Container(
       width: double.infinity,
@@ -156,7 +184,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // 책 표지
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: Image.network(
@@ -173,7 +200,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
           ),
           const SizedBox(width: 20),
-          // 제목 및 저자 정보
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -196,7 +222,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ],
             ),
           ),
-          // 더보기 버튼
           Text('더보기',
               style: _ptStyle(
                   size: 14,

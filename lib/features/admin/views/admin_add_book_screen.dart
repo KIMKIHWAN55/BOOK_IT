@@ -47,7 +47,7 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
 
     _titleController = TextEditingController(text: book?.title ?? '');
     _authorController = TextEditingController(text: book?.author ?? '');
-    _rankController = TextEditingController(text: book?.rank ?? '');
+    _rankController = TextEditingController(text: book?.rank.toString() ?? '');
     _descriptionController = TextEditingController(text: book?.description ?? '');
     _priceController = TextEditingController(text: book?.price.toString() ?? '');
     _discountController = TextEditingController(text: book?.discountRate?.toString() ?? '');
@@ -76,6 +76,8 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
   }
 
   Future<void> _submitForm() async {
+    //제출 시작 시 키보드 내리기
+    FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
     // 카테고리 검사
@@ -105,13 +107,13 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
       title: _titleController.text,
       author: _authorController.text,
       imageUrl: widget.bookToEdit?.imageUrl ?? '', // 기존 URL 혹은 빈 값
-      rank: _rankController.text,
+      rank: int.tryParse(_rankController.text) ?? 0,
       category: _selectedCategory,
       rating: widget.bookToEdit?.rating ?? '0.0',
       reviewCount: widget.bookToEdit?.reviewCount ?? '0',
       description: _descriptionController.text,
-      price: int.tryParse(_priceController.text) ?? 0,
-      discountRate: int.tryParse(_discountController.text),
+      price: int.tryParse(_priceController.text.replaceAll(',', '')) ?? 0,
+      discountRate: int.tryParse(_discountController.text.replaceAll(',', '')),
       tags: tagsList,
     );
 

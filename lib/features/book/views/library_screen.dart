@@ -142,7 +142,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                           title: data['title'] ?? '제목 없음',
                           imageUrl: data['imageUrl'] ?? '',
                           author: data['author'] ?? '작자 미상',
-                          rank: '', rating: '', reviewCount: '', category: '',
+                          rank: 0, rating: '', reviewCount: '', category: '',
                         );
 
                         return Positioned(

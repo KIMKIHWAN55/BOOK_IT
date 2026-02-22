@@ -21,19 +21,23 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   String? _currentImageUrl;
   bool _isLoading = false;
 
+  // 🌟 [추가] 닉네임 중복 체크용 상태 변수들
+  String _originalNickname = '';
+  bool _isNicknameChecked = true; // 처음에는 원래 내 닉네임이므로 통과 상태
+
   @override
   void initState() {
     super.initState();
     _loadUserData();
   }
 
-  // Controller를 통해 기존 사용자 정보 불러오기
   Future<void> _loadUserData() async {
     try {
       final data = await ref.read(profileActionControllerProvider).getRawProfileData();
       if (data != null && mounted) {
         setState(() {
           _nicknameController.text = data['nickname'] ?? '';
+          _originalNickname = data['nickname'] ?? ''; // 내 원래 닉네임 기억
           _nameController.text = data['name'] ?? '';
           _bioController.text = data['bio'] ?? '';
           _currentImageUrl = data['profileImage'];
@@ -44,7 +48,6 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     }
   }
 
-  // 갤러리에서 이미지 선택 (UI 역할이므로 View에 유지)
   Future<void> _pickImage() async {
     final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
@@ -54,12 +57,41 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     }
   }
 
-  // 프로필 저장 액션
+  // 🌟 [추가] 닉네임 중복 확인 로직
+  Future<void> _checkDuplicate() async {
+    final nickname = _nicknameController.text.trim();
+    if (nickname.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('닉네임을 입력해주세요.')));
+      return;
+    }
+
+    if (nickname == _originalNickname) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('기존에 사용하시던 닉네임입니다.')));
+      setState(() => _isNicknameChecked = true);
+      return;
+    }
+
+    final isDuplicate = await ref.read(profileActionControllerProvider).checkNicknameDuplicate(nickname);
+
+    if (isDuplicate) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('이미 사용 중인 닉네임입니다. 다른 닉네임을 입력해주세요.')));
+      setState(() => _isNicknameChecked = false);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('사용 가능한 닉네임입니다!')));
+      setState(() => _isNicknameChecked = true);
+    }
+  }
+
   Future<void> _saveProfile() async {
+    // 🌟 [추가] 닉네임 중복 체크 안 했으면 튕겨내기
+    if (!_isNicknameChecked) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('닉네임 중복 확인을 해주세요!')));
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
-      // Storage 업로드와 Firestore 업데이트를 Controller가 알아서 처리
       await ref.read(profileActionControllerProvider).updateProfile(
         name: _nameController.text.trim(),
         nickname: _nicknameController.text.trim(),
@@ -68,16 +100,12 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('프로필이 성공적으로 수정되었습니다.')),
-        );
-        Navigator.pop(context); // 저장 후 뒤로가기
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('프로필이 성공적으로 수정되었습니다.')));
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('저장 실패: ${e.toString().replaceAll("Exception: ", "")}')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('저장 실패: ${e.toString().replaceAll("Exception: ", "")}')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -96,15 +124,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
           icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          '프로필 편집',
-          style: TextStyle(
-            fontFamily: 'Pretendard',
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
-          ),
-        ),
+        title: const Text('프로필 편집', style: TextStyle(fontFamily: 'Pretendard', fontSize: 20, fontWeight: FontWeight.w600, color: Colors.black)),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Color(0xFFD45858)))
@@ -113,8 +133,6 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
         child: Column(
           children: [
             const SizedBox(height: 30),
-
-            // --- 프로필 이미지 영역 ---
             GestureDetector(
               onTap: _pickImage,
               child: Stack(
@@ -140,42 +158,57 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                     width: 30,
                     height: 30,
                     margin: const EdgeInsets.only(right: 5, bottom: 5),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFD45858),
-                      shape: BoxShape.circle,
-                    ),
+                    decoration: const BoxDecoration(color: Color(0xFFD45858), shape: BoxShape.circle),
                     child: const Icon(Icons.camera_alt, color: Colors.white, size: 18),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 12),
-
             GestureDetector(
               onTap: _pickImage,
-              child: const Text(
-                '사진 변경하기',
-                style: TextStyle(
-                  fontFamily: 'Pretendard',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFFD45858),
+              child: const Text('사진 변경하기', style: TextStyle(fontFamily: 'Pretendard', fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFD45858))),
+            ),
+            const SizedBox(height: 40),
+
+            _buildCustomTextField(label: '이름', controller: _nameController),
+            const SizedBox(height: 10),
+
+            // 🌟 닉네임 입력란 (+ 중복 확인 버튼)
+            _buildCustomTextField(
+              label: '닉네임',
+              controller: _nicknameController,
+              // 글자가 바뀌면 다시 중복확인 하도록 상태 변경
+              onChanged: (value) {
+                if (value != _originalNickname) {
+                  setState(() => _isNicknameChecked = false);
+                } else {
+                  setState(() => _isNicknameChecked = true);
+                }
+              },
+              suffix: GestureDetector(
+                onTap: _checkDuplicate,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _isNicknameChecked ? Colors.grey[300] : const Color(0xFF196DF8),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    _isNicknameChecked ? '확인 완료' : '중복 확인',
+                    style: TextStyle(
+                      fontFamily: 'Pretendard', fontSize: 12, fontWeight: FontWeight.w600,
+                      color: _isNicknameChecked ? Colors.black54 : Colors.white,
+                    ),
+                  ),
                 ),
               ),
             ),
 
-            const SizedBox(height: 40),
-
-            // --- 입력 필드들 ---
-            _buildCustomTextField(label: '이름', controller: _nameController),
-            const SizedBox(height: 10),
-            _buildCustomTextField(label: '닉네임', controller: _nicknameController),
             const SizedBox(height: 10),
             _buildCustomTextField(label: '소개', controller: _bioController),
-
             const SizedBox(height: 60),
 
-            // --- 변경하기 버튼 ---
             SizedBox(
               width: double.infinity,
               height: 60,
@@ -183,20 +216,10 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                 onPressed: _saveProfile,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFD45858),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   elevation: 0,
                 ),
-                child: const Text(
-                  '변경 하기',
-                  style: TextStyle(
-                    fontFamily: 'Pretendard',
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
+                child: const Text('변경 하기', style: TextStyle(fontFamily: 'Pretendard', fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white)),
               ),
             ),
             const SizedBox(height: 30),
@@ -206,7 +229,13 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     );
   }
 
-  Widget _buildCustomTextField({required String label, required TextEditingController controller}) {
+  // 🌟 suffix(우측 버튼)와 onChanged(타이핑 감지)를 받을 수 있도록 확장된 UI 위젯
+  Widget _buildCustomTextField({
+    required String label,
+    required TextEditingController controller,
+    Widget? suffix,
+    Function(String)? onChanged,
+  }) {
     return Container(
       height: 52,
       decoration: BoxDecoration(
@@ -219,31 +248,18 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
         children: [
           SizedBox(
             width: 50,
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontFamily: 'Pretendard',
-                fontSize: 14,
-                color: Color(0xFF767676),
-              ),
-            ),
+            child: Text(label, style: const TextStyle(fontFamily: 'Pretendard', fontSize: 14, color: Color(0xFF767676))),
           ),
           const VerticalDivider(color: Colors.transparent, width: 10),
           Expanded(
             child: TextField(
               controller: controller,
-              decoration: const InputDecoration(
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-              ),
-              style: const TextStyle(
-                fontFamily: 'Pretendard',
-                fontSize: 14,
-                color: Colors.black,
-              ),
+              onChanged: onChanged,
+              decoration: const InputDecoration(border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.zero),
+              style: const TextStyle(fontFamily: 'Pretendard', fontSize: 14, color: Colors.black),
             ),
           ),
+          if (suffix != null) suffix,
         ],
       ),
     );
