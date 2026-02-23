@@ -5,38 +5,41 @@ import '../repositories/board_repository.dart';
 import '../models/post_model.dart';
 import '../../book/models/book_model.dart';
 
+// 🌟 [수정 1] 모두 autoDispose를 붙여서 이전 유저의 데이터가 캐싱되는 것을 막습니다.
+// 🌟 [수정 2] Provider 내부에서는 ref.read 대신 ref.watch를 사용하는 것이 정석입니다.
+
 // [Provider] 최근 게시글 목록
-final recentPostsProvider = StreamProvider<List<PostModel>>((ref) {
-  return ref.read(boardRepositoryProvider).getPostsStream();
+final recentPostsProvider = StreamProvider.autoDispose<List<PostModel>>((ref) {
+  return ref.watch(boardRepositoryProvider).getPostsStream();
 });
 
 // [Provider] 내가 좋아요한 게시글 목록
-final likedPostsProvider = StreamProvider<List<PostModel>>((ref) {
+final likedPostsProvider = StreamProvider.autoDispose<List<PostModel>>((ref) {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return Stream.value([]);
-  return ref.read(boardRepositoryProvider).getPostsStream(userId: user.uid, isLikedPosts: true);
+  return ref.watch(boardRepositoryProvider).getPostsStream(userId: user.uid, isLikedPosts: true);
 });
 
 // [Provider] 내가 작성한 게시글 목록
-final myPostsProvider = StreamProvider<List<PostModel>>((ref) {
+final myPostsProvider = StreamProvider.autoDispose<List<PostModel>>((ref) {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return Stream.value([]);
-  return ref.read(boardRepositoryProvider).getPostsStream(userId: user.uid);
+  return ref.watch(boardRepositoryProvider).getPostsStream(userId: user.uid);
 });
 
 // [Provider] 특정 게시글의 댓글 목록
-final commentsProvider = StreamProvider.family<List<QueryDocumentSnapshot>, String>((ref, postId) {
+final commentsProvider = StreamProvider.autoDispose.family<List<QueryDocumentSnapshot>, String>((ref, postId) {
   final repository = ref.watch(boardRepositoryProvider);
   return repository.getCommentsStream(postId).map((snapshot) => snapshot.docs);
 });
 
 // [Provider] 책 목록 (글쓰기 화면의 책 선택용)
-final booksProvider = StreamProvider<List<BookModel>>((ref) {
-  return ref.read(boardRepositoryProvider).getBooksStream();
+final booksProvider = StreamProvider.autoDispose<List<BookModel>>((ref) {
+  return ref.watch(boardRepositoryProvider).getBooksStream();
 });
 
 // [Provider] BoardController
-final boardControllerProvider = Provider((ref) => BoardController(ref));
+final boardControllerProvider = Provider.autoDispose((ref) => BoardController(ref));
 
 class BoardController {
   final Ref _ref;

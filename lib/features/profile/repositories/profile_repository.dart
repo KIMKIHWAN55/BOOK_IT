@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../book/models/book_model.dart';
-import '../models/user_model.dart'; // 🌟 UserModel import 추가
+import '../models/user_model.dart';
 import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 
@@ -12,7 +12,11 @@ class ProfileRepository {
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
 
-  // 🌟 [추가] 유저 정보 스트림 (프로필 수정 시 실시간 자동 반영)
+  // ==========================================
+  // 1. 유저 정보 관리 (실시간 및 초기값)
+  // ==========================================
+
+  // 유저 정보 스트림 (실시간 반영)
   Stream<UserModel?> getUserProfileStream() {
     final user = _auth.currentUser;
     if (user == null) return Stream.value(null);
@@ -23,7 +27,20 @@ class ProfileRepository {
     });
   }
 
-  // 좋아요한 책 목록 가져오기 (Stream)
+  // 초기 텍스트 필드 채우기용 원본 데이터
+  Future<Map<String, dynamic>?> getRawProfileData() async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+
+    final doc = await _firestore.collection('users').doc(user.uid).get();
+    return doc.data();
+  }
+
+  // ==========================================
+  // 2. 좋아요 및 라이브러리 기능 (사용자님 핵심 기능)
+  // ==========================================
+
+  // 🌟 [복구] 좋아요한 책 목록 가져오기 (마이페이지용)
   Stream<QuerySnapshot> getLikedBooksStream() {
     final user = _auth.currentUser;
     if (user == null) return const Stream.empty();
@@ -36,28 +53,18 @@ class ProfileRepository {
         .snapshots();
   }
 
-  // 책 ID로 상세 정보 가져오기
+  // 책 상세 정보 가져오기
   Future<BookModel?> getBookDetail(String bookId) async {
     final doc = await _firestore.collection('books').doc(bookId).get();
     if (doc.exists) return BookModel.fromFirestore(doc);
     return null;
   }
 
-  // 🌟 [추가] 로그아웃
-  Future<void> logout() async {
-    await _auth.signOut();
-  }
+  // ==========================================
+  // 3. 프로필 업데이트 및 설정
+  // ==========================================
 
-  // 초기 텍스트 필드 채우기용 원본 데이터 가져오기
-  Future<Map<String, dynamic>?> getRawProfileData() async {
-    final user = _auth.currentUser;
-    if (user == null) return null;
-
-    final doc = await _firestore.collection('users').doc(user.uid).get();
-    return doc.data();
-  }
-
-  // Storage에 프로필 이미지 업로드 후 URL 반환
+  // Storage에 이미지 업로드
   Future<String?> uploadProfileImage(File imageFile) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception("로그인이 필요합니다.");
@@ -71,45 +78,51 @@ class ProfileRepository {
     return await storageRef.getDownloadURL();
   }
 
-  // Firestore 사용자 정보 업데이트
-  Future<void> updateProfile({required String name, required String nickname, required String bio, String? profileImageUrl}) async {
-    final user = _auth.currentUser;
-    if (user == null) throw Exception("로그인이 필요합니다.");
-
-    final data = {
-      'name': name,
-      'nickname': nickname,
-      'bio': bio,
-    };
-
-    if (profileImageUrl != null) {
-      data['profileImage'] = profileImageUrl;
-    }
-
-    await _firestore.collection('users').doc(user.uid).set(data, SetOptions(merge: true));
-  }
-  // 최초 프로필 설정 (회원가입 직후)
-  Future<void> setupProfile({
+  // 프로필 정보 업데이트 (최초 설정 및 수정 공용)
+  Future<void> updateProfile({
     required String name,
     required String nickname,
     required String bio,
-    String? profileImageUrl
+    String? profileImageUrl,
+    bool isInitialSetup = false,
   }) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception("로그인이 필요합니다.");
 
-    final data = {
+    final Map<String, dynamic> data = {
       'name': name,
       'nickname': nickname,
       'bio': bio,
-      'profileImage': profileImageUrl ?? '', // 🌟 다른 화면과 필드명 통일!
-      'role': 'user',
-      'createdAt': FieldValue.serverTimestamp(),
+      if (isInitialSetup) 'isProfileSetupComplete': true,
     };
 
+    if (profileImageUrl != null && profileImageUrl.isNotEmpty) {
+      data['profileImage'] = profileImageUrl; // 필드명 일관성 유지
+    }
+
+    // merge: true를 사용하여 가입 시 입력된 이메일 등을 보존합니다.
     await _firestore.collection('users').doc(user.uid).set(data, SetOptions(merge: true));
   }
-  // 비밀번호 재설정 메일 발송
+
+  // 닉네임 중복 검사
+  Future<bool> checkNicknameDuplicate(String nickname) async {
+    final user = _auth.currentUser;
+    final query = await _firestore.collection('users').where('nickname', isEqualTo: nickname).get();
+
+    for (var doc in query.docs) {
+      if (doc.id != user?.uid) return true;
+    }
+    return false;
+  }
+
+  // ==========================================
+  // 4. 계정 및 인증 관리
+  // ==========================================
+
+  Future<void> logout() async {
+    await _auth.signOut();
+  }
+
   Future<void> sendPasswordResetEmail() async {
     final user = _auth.currentUser;
     if (user != null && user.email != null) {
@@ -119,27 +132,10 @@ class ProfileRepository {
     }
   }
 
-  // 회원 탈퇴
   Future<void> deleteAccount() async {
     final user = _auth.currentUser;
     if (user == null) throw Exception("로그인이 필요합니다.");
-
-    // DB 데이터 삭제
     await _firestore.collection('users').doc(user.uid).delete();
-    // 계정 삭제
     await user.delete();
-  }
-  // 🌟 [추가] 닉네임 중복 검사 로직
-  Future<bool> checkNicknameDuplicate(String nickname) async {
-    final user = _auth.currentUser;
-    final query = await _firestore.collection('users').where('nickname', isEqualTo: nickname).get();
-
-    for (var doc in query.docs) {
-      // 검색된 닉네임이 내 것이 아니라 다른 사람의 것이라면 중복!
-      if (doc.id != user?.uid) {
-        return true;
-      }
-    }
-    return false; // 사용 가능
   }
 }
