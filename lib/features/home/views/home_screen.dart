@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:bookit_app/features/book/views/book_detail_screen.dart';
 import 'package:bookit_app/features/home/controllers/home_controller.dart';
 import '../../../shared/widgets/custom_network_image.dart';
-
+import 'package:flutter/foundation.dart';
 // 🌟 [추가] 업그레이드 된 공통 상단바 Import
 import '../../../shared/widgets/custom_app_bar.dart';
 
@@ -141,7 +141,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-// 🌟 [완벽 리팩토링] 9개의 리스트를 3개씩 묶어서 가로 스와이프 가능하게 변경!
+  // 🌟 [완벽 리팩토링] 9개의 리스트를 3개씩 묶어서 가로 스와이프 가능하게 변경!
   Widget _buildBestSellerList(List<dynamic> books) {
     if (books.isEmpty) {
       return const Padding(
@@ -179,11 +179,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 },
                 child: _buildBestsellerItem(
                   rank: book.rank.toString(),
-                  title: book.title,
-                  author: book.author,
-                  imageUrl: book.imageUrl,
-                  rating: book.rating,
-                  reviewCount: book.reviewCount,
+                  // 🌟 웹 환경 에러 방지: DB 값이 숫자일 수 있으므로 모두 강제 문자열 변환
+                  title: book.title.toString(),
+                  author: book.author.toString(),
+                  imageUrl: book.imageUrl.toString(),
+                  rating: book.rating.toString(),
+                  reviewCount: book.reviewCount.toString(),
                 ),
               );
             }).toList(),
@@ -219,8 +220,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     required String rating,
     required String reviewCount,
   }) {
-    // 🌟 1. 여기서 인코딩된 안전한 URL을 만들고
-    final safeUrl = 'https://wsrv.nl/?url=${Uri.encodeComponent(imageUrl)}';
+
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
@@ -229,7 +229,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: CustomNetworkImage(
-              imageUrl: imageUrl, // 원본 URL을 그대로 넘깁니다.
+              imageUrl: imageUrl, // 🌟 이제 앱에서는 원본이, 웹에서는 프록시가 자동으로 들어갑니다.
               width: 73,
               height: 110,
             ),

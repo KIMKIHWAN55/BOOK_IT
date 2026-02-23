@@ -39,7 +39,7 @@ final booksProvider = StreamProvider.autoDispose<List<BookModel>>((ref) {
 });
 
 // [Provider] BoardController
-final boardControllerProvider = Provider.autoDispose((ref) => BoardController(ref));
+final boardControllerProvider = Provider((ref) => BoardController(ref));
 
 class BoardController {
   final Ref _ref;
