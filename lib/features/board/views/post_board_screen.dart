@@ -4,6 +4,7 @@ import '../controllers/board_controller.dart';
 import '../models/post_model.dart';
 import 'package:bookit_app/shared/widgets/post_card.dart';
 
+
 // 🌟 AppRouter 경로 추가
 import '../../../core/router/app_router.dart';
 

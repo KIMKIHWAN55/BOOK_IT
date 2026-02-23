@@ -62,23 +62,55 @@ class AdminRepository {
     });
   }
 
-  // 5. 책 삭제하기 (Firestore 문서 + Storage 이미지)
+// 5. 책 삭제하기 (연쇄 삭제 및 스토리지 이미지 검증 포함)
   Future<void> deleteBook(String docId, String imageUrl) async {
     try {
-      // (1) Firestore 문서 삭제
-      await _firestore.collection('books').doc(docId).delete();
-
-      // (2) Storage 이미지 삭제 (이미지가 존재할 경우만)
-      if (imageUrl.isNotEmpty) {
+      // 1. Storage 이미지 삭제
+      // 🌟 카카오 API 이미지(http://...)가 아닌, 파이어베이스 스토리지에 직접 올린 사진일 때만 지우도록 방어 로직 추가!
+      if (imageUrl.isNotEmpty && imageUrl.contains('firebasestorage.googleapis.com')) {
         try {
           await _storage.refFromURL(imageUrl).delete();
         } catch (e) {
-          // 이미지가 이미 없거나 삭제 실패 시, 문서 삭제는 성공했으므로 로그만 남기고 무시
           print('이미지 삭제 실패 (무시됨): $e');
         }
       }
+
+      // 2. 일괄 처리(Batch) 장바구니 생성
+      final batch = _firestore.batch();
+
+      // (1) 📚 원본 책 데이터 삭제 추가
+      final bookRef = _firestore.collection('books').doc(docId);
+      batch.delete(bookRef);
+
+      // (2) 🏆 프로모션(주간 추천) 배열에서 이 책의 ID만 쏙 빼기 (배열 요소 삭제)
+      final promoRef = _firestore.collection('promotions').doc('weekly_recommend');
+      batch.update(promoRef, {
+        'bookIds': FieldValue.arrayRemove([docId]) // 🌟 이 부분이 핵심입니다!
+      });
+
+      // (3) ❤️ 좋아요(likes) 컬렉션 연쇄 삭제 (예시)
+      // 주의: 실제 파이어베이스의 '좋아요' 컬렉션 이름과, 책 ID를 저장하는 필드명('bookId')에 맞게 수정하세요.
+      final likesSnapshot = await _firestore.collection('likes')
+          .where('bookId', isEqualTo: docId)
+          .get();
+      for (var doc in likesSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // (4) 📝 게시판(board) 연쇄 삭제 (예시)
+      // 주의: 실제 파이어베이스의 '게시판' 컬렉션 이름과 필드명에 맞게 수정하세요.
+      final boardSnapshot = await _firestore.collection('board')
+          .where('bookId', isEqualTo: docId)
+          .get();
+      for (var doc in boardSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // 3. 장바구니에 담은 모든 삭제/수정 명령을 한 번에 실행!
+      await batch.commit();
+
     } catch (e) {
-      throw Exception('책 삭제 실패: $e');
+      throw Exception('책 연쇄 삭제 실패: $e');
     }
   }
 

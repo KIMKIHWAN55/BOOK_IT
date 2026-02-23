@@ -1,6 +1,7 @@
 import 'dart:async'; // 🌟 디바운스(Timer)를 위해 추가
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../shared/widgets/custom_network_image.dart';
 
 import '../models/book_model.dart';
 import '../controllers/search_controller.dart';
@@ -186,17 +187,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
-            child: Image.network(
-              book.imageUrl,
+            child: CustomNetworkImage(
+              imageUrl: book.imageUrl,
               width: 73,
               height: 110,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
-                width: 73,
-                height: 110,
-                color: Colors.grey[200],
-                child: const Icon(Icons.book, color: Colors.grey),
-              ),
             ),
           ),
           const SizedBox(width: 20),

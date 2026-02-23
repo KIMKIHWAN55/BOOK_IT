@@ -1,6 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../repositories/book_repository.dart';
+import '../../book/repositories/book_repository.dart';
 import '../models/review_model.dart';
 
 final bookControllerProvider = Provider((ref) => BookController(ref));

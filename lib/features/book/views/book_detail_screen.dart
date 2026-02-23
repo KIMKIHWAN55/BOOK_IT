@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../shared/widgets/custom_network_image.dart';
 
 import '../models/book_model.dart';
 import '../controllers/book_detail_controller.dart';
@@ -151,7 +152,7 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
 
                   const SizedBox(height: 10),
 
-                  // 책 표지
+// 책 표지
                   Center(
                     child: Container(
                       width: 165,
@@ -164,10 +165,15 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
                               offset: const Offset(0, 2),
                               blurRadius: 2),
                         ],
-                        image: DecorationImage(
-                          image: NetworkImage(book.imageUrl),
-                          fit: BoxFit.cover,
-                          onError: (exception, stackTrace) {},
+                        // 여기서 image 속성은 통째로 지워줍니다!
+                      ),
+                      // 🌟 대신 child 안으로 CustomNetworkImage를 쏙 넣습니다.
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: CustomNetworkImage(
+                          imageUrl: book.imageUrl,
+                          width: 165.0,
+                          height: 250.0,
                         ),
                       ),
                     ),

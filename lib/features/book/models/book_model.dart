@@ -32,7 +32,7 @@ class BookModel {
     this.tags = const [],
   });
 
-  // 🔸 Firestore JSON 데이터를 객체로 변환
+// 🔸 Firestore JSON 데이터를 객체로 변환
   factory BookModel.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     return BookModel(
@@ -41,13 +41,15 @@ class BookModel {
       title: data['title'] ?? '',
       author: data['author'] ?? '',
       imageUrl: data['imageUrl'] ?? '',
-      rating: data['rating'] ?? '0.0',
-      reviewCount: data['reviewCount'] ?? '0',
+
+      // 🌟 [수정됨] 숫자가 넘어와도 무조건 문자로 안전하게 변환!
+      rating: data['rating']?.toString() ?? '0.0',
+      reviewCount: data['reviewCount']?.toString() ?? '0',
+
       category: data['category'] ?? 'general',
-      // 🔹 추가된 필드 파싱
       description: data['description'] ?? '',
       price: data['price'] ?? 0,
-      discountRate: data['discountRate'], // null 가능
+      discountRate: data['discountRate'],
       tags: List<String>.from(data['tags'] ?? []),
     );
   }

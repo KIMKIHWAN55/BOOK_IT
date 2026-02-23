@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/post_model.dart';
 import '../../book/models/book_model.dart'; // BookModel import 확인
+import 'package:firebase_auth/firebase_auth.dart';
 
 // 🌟 [중요] 이 Provider 선언이 있어야 Controller에서 에러가 안 납니다!
 final boardRepositoryProvider = Provider((ref) => BoardRepository());
@@ -12,8 +13,10 @@ class BoardRepository {
   // ======================================================================
   // 1. 게시글 조회 (메인, 좋아요한 글, 내가 쓴 글)
   // ======================================================================
-  Stream<List<PostModel>> getPostsStream({String? userId, bool isLikedPosts = false}) {
-    Query query = _firestore.collection('posts').orderBy('createdAt', descending: true);
+  Stream<List<PostModel>> getPostsStream(
+      {String? userId, bool isLikedPosts = false}) {
+    Query query = _firestore.collection('posts').orderBy(
+        'createdAt', descending: true);
 
     if (isLikedPosts && userId != null) {
       // 내가 좋아요한 글 목록 조회 (likedBy 배열에 내 ID가 있는 글)
@@ -39,7 +42,8 @@ class BoardRepository {
     required bool isAlreadyLiked,
   }) async {
     final postRef = _firestore.collection('posts').doc(post.id);
-    final myLikeRef = _firestore.collection('users').doc(userId).collection('liked_feeds').doc(post.id);
+    final myLikeRef = _firestore.collection('users').doc(userId).collection(
+        'liked_feeds').doc(post.id);
 
     final batch = _firestore.batch();
 
@@ -90,7 +94,7 @@ class BoardRepository {
       'nickname': nickname,
       'createdAt': FieldValue.serverTimestamp(),
       'parentId': parentId, // 부모가 없으면 null (일반 댓글)
-      'isDeleted': false,   // 삭제 여부
+      'isDeleted': false, // 삭제 여부
     });
 
     batch.update(postRef, {
@@ -102,7 +106,8 @@ class BoardRepository {
 
   // 🌟 [추가됨] 댓글 소프트 삭제 (내용만 가리기)
   Future<void> softDeleteComment(String postId, String commentId) async {
-    await _firestore.collection('posts').doc(postId).collection('comments').doc(commentId).update({
+    await _firestore.collection('posts').doc(postId).collection('comments').doc(
+        commentId).update({
       'content': '삭제된 댓글입니다.',
       'isDeleted': true,
     });
@@ -145,7 +150,8 @@ class BoardRepository {
   }
 
   // 🌟 [추가됨] 게시글 수정
-  Future<void> updatePost(String postId, Map<String, dynamic> updateData) async {
+  Future<void> updatePost(String postId,
+      Map<String, dynamic> updateData) async {
     await _firestore.collection('posts').doc(postId).update(updateData);
   }
 
@@ -168,11 +174,24 @@ class BoardRepository {
     return null;
   }
 
-  // 유저 닉네임 가져오기
+// 유저 닉네임 가져오기 (구글 이름 우선 활용)
   Future<String> getUserNickname(String uid) async {
     try {
+      // 🌟 [수정] 1순위: 무조건 DB(Firestore)를 먼저 확인합니다.
+      // 사용자가 앱에서 수정한 '최신 닉네임'이 여기에 있기 때문입니다.
       final doc = await _firestore.collection('users').doc(uid).get();
-      return doc.data()?['nickname'] ?? '익명';
+
+      if (doc.exists && doc.data()?['nickname'] != null) {
+        return doc.data()!['nickname']; // DB에 설정된 닉네임 반환
+      }
+
+      // 2순위: 만약 DB에 정보가 없다면, 그때 구글 계정 이름을 확인합니다.
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null && currentUser.uid == uid) {
+        return currentUser.displayName ?? '익명';
+      }
+
+      return '익명';
     } catch (e) {
       return '익명';
     }

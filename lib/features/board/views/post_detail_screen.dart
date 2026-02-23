@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
+import '../../../shared/widgets/custom_network_image.dart';
 import '../models/post_model.dart';
 import '../controllers/board_controller.dart';
 import '../../book/views/book_detail_screen.dart';
@@ -174,12 +174,10 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                           children: [
                             ClipRRect(
                               borderRadius: BorderRadius.circular(6),
-                              child: Image.network(
-                                widget.post.bookImageUrl ?? '',
+                              child: CustomNetworkImage(
+                                imageUrl: widget.post.bookImageUrl ?? '',
                                 width: 55,
                                 height: 80,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Container(width: 55, height: 80, color: Colors.grey[300]),
                               ),
                             ),
                             const SizedBox(width: 16),

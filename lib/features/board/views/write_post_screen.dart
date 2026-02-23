@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../book/models/book_model.dart';
 import '../controllers/board_controller.dart';
+import '../../../shared/widgets/custom_network_image.dart';
 // 🌟 PostModel 임포트 추가 (수정할 때 데이터를 넘겨받기 위함)
 import '../models/post_model.dart';
 
@@ -131,10 +132,10 @@ class _WritePostScreenState extends ConsumerState<WritePostScreen> {
                               contentPadding: const EdgeInsets.symmetric(vertical: 8),
                               leading: ClipRRect(
                                 borderRadius: BorderRadius.circular(4),
-                                child: Image.network(
-                                  book.imageUrl,
-                                  width: 40, height: 60, fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Container(width: 40, color: Colors.grey[300]),
+                                child: CustomNetworkImage(
+                                  imageUrl: book.imageUrl,
+                                  width: 40,
+                                  height: 60,
                                 ),
                               ),
                               title: Text(book.title, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -243,10 +244,10 @@ class _WritePostScreenState extends ConsumerState<WritePostScreen> {
                         children: [
                           ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              _selectedBook!.imageUrl,
-                              width: 50, height: 76, fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(width: 50, height: 76, color: Colors.grey),
+                            child: CustomNetworkImage(
+                              imageUrl: _selectedBook!.imageUrl,
+                              width: 50,
+                              height: 76,
                             ),
                           ),
                           const SizedBox(width: 16),

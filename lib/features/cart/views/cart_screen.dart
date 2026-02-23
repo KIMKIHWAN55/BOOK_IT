@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../models/cart_item_model.dart';
 import '../controllers/cart_controller.dart';
 import 'payment_screen.dart';
+import '../../../shared/widgets/custom_network_image.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -164,7 +165,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             },
             activeColor: Colors.redAccent,
           ),
-          Image.network(item.imageUrl, width: 80, height: 100, fit: BoxFit.cover),
+// 🌟 CustomNetworkImage로 교체! (둥근 테두리를 원하시면 ClipRRect로 감싸셔도 예쁩니다)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6), // 선택 사항: 테두리를 살짝 둥글게
+            child: CustomNetworkImage(
+              imageUrl: item.imageUrl,
+              width: 80,
+              height: 100,
+            ),
+          ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(

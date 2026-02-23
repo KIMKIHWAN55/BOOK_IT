@@ -6,6 +6,7 @@ import 'package:bookit_app/features/board/controllers/board_controller.dart';
 import 'package:bookit_app/features/board/models/post_model.dart';
 import 'package:bookit_app/features/board/repositories/board_repository.dart';
 import 'package:bookit_app/features/book/views/book_detail_screen.dart';
+import '../../../shared/widgets/custom_network_image.dart';
 
 import '../../../core/router/app_router.dart';
 
@@ -46,6 +47,7 @@ class PostCard extends ConsumerWidget {
 
     // 현재 로그인한 유저가 이 글의 작성자인지 확인
     final isMyPost = user != null && user.uid == post.uid;
+    final isAdmin = user != null && user.email == 'whrjsghks980@naver.com';
 
     return Container(
       width: double.infinity,
@@ -75,8 +77,8 @@ class PostCard extends ConsumerWidget {
                 ),
               ),
 
-              // 내 글일 때만 보이는 우측 상단 더보기 메뉴
-              if (isMyPost)
+// 🌟 3. [수정됨] 내 글이거나 '관리자'일 때 메뉴 버튼 띄우기
+              if (isMyPost || isAdmin)
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert, color: Color(0xFF767676)),
                   color: Colors.white,
@@ -89,10 +91,13 @@ class PostCard extends ConsumerWidget {
                     }
                   },
                   itemBuilder: (BuildContext context) => [
-                    const PopupMenuItem(
-                      value: 'edit',
-                      child: Text('수정하기', style: TextStyle(fontFamily: 'Pretendard', fontSize: 14)),
-                    ),
+                    // 🌟 4. [수정됨] '수정하기'는 글 작성자 본인에게만 보임
+                    if (isMyPost)
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Text('수정하기', style: TextStyle(fontFamily: 'Pretendard', fontSize: 14)),
+                      ),
+                    // '삭제하기'는 작성자 본인과 관리자 모두에게 보임
                     const PopupMenuItem(
                       value: 'delete',
                       child: Text('삭제하기', style: TextStyle(fontFamily: 'Pretendard', fontSize: 14, color: Colors.red)),
@@ -238,10 +243,10 @@ class PostCard extends ConsumerWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
-            child: Image.network(
-              post.bookImageUrl ?? '',
-              width: 73, height: 110, fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(width: 73, color: Colors.grey[300]),
+            child: CustomNetworkImage(
+              imageUrl: post.bookImageUrl ?? '',
+              width: 73,
+              height: 110,
             ),
           ),
           const SizedBox(width: 20),
@@ -316,6 +321,8 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
   @override
   Widget build(BuildContext context) {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    final currentUserEmail = FirebaseAuth.instance.currentUser?.email;
+    final isAdmin = currentUserEmail == 'whrjsghks980@naver.com';
 
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
@@ -358,6 +365,8 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
                       final isChild = cData['parentId'] != null;
                       final isDeleted = cData['isDeleted'] == true;
                       final isMyComment = currentUserId == cData['uid'];
+                      // 🌟 3. [추가] 삭제 권한이 있는 사람 = 본인 또는 관리자
+                      final hasDeletePermission = isMyComment || isAdmin;
 
                       final createdAt = (cData['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
 
@@ -385,7 +394,7 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
                                       Text(_getTimeString(createdAt), style: const TextStyle(fontSize: 12, color: Colors.grey)),
                                       const Spacer(),
                                       // 🌟 내 댓글이고 삭제되지 않은 상태일 때만 '삭제' 버튼 표시
-                                      if (isMyComment && !isDeleted)
+                                      if (hasDeletePermission && !isDeleted)
                                         GestureDetector(
                                           onTap: () async {
                                             await ref.read(boardControllerProvider).deleteComment(widget.post.id, doc.id);

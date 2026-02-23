@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../book/models/book_model.dart';
 import '../controllers/admin_controller.dart';
 import '../repositories/admin_repository.dart'; // 🌟 API 호출을 위해 추가
+import '../../../shared/widgets/custom_network_image.dart';
 
 class AdminAddBookScreen extends ConsumerStatefulWidget {
   final BookModel? bookToEdit;
@@ -219,18 +220,35 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
                     child: Container(
                       width: 120, height: 180,
                       decoration: BoxDecoration(
-                        color: Colors.grey[200], borderRadius: BorderRadius.circular(8),
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: Colors.grey[400]!),
-                        // 🌟 API로 가져온 이미지를 보여주는 로직
-                        image: _selectedImage != null
-                            ? DecorationImage(image: FileImage(_selectedImage!), fit: BoxFit.cover)
-                            : (_fetchedImageUrl != null && _fetchedImageUrl!.isNotEmpty)
-                            ? DecorationImage(image: NetworkImage(_fetchedImageUrl!), fit: BoxFit.cover)
-                            : null,
                       ),
-                      child: (_selectedImage == null && (_fetchedImageUrl == null || _fetchedImageUrl!.isEmpty))
-                          ? const Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.camera_alt, color: Colors.grey, size: 40), SizedBox(height: 8), Text("표지 등록", style: TextStyle(color: Colors.grey))])
-                          : null,
+                      // 🌟 이미지가 둥근 테두리를 뚫고 나가지 않도록 ClipRRect로 감싸줍니다.
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(7),
+                        child: _selectedImage != null
+                        // 1. 갤러리에서 직접 고른 사진 (내부 파일) 🔴 교체 안 함!
+                            ? Image.file(_selectedImage!, fit: BoxFit.cover)
+
+                            : (_fetchedImageUrl != null && _fetchedImageUrl!.isNotEmpty)
+                        // 2. API로 불러온 사진 (웹 주소) 🟢 커스텀 위젯으로 교체!
+                            ? CustomNetworkImage(
+                          imageUrl: _fetchedImageUrl!,
+                          width: 120,
+                          height: 180,
+                        )
+
+                        // 3. 사진이 아예 없을 때 (초기 상태)
+                            : const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.camera_alt, color: Colors.grey, size: 40),
+                            SizedBox(height: 8),
+                            Text("표지 등록", style: TextStyle(color: Colors.grey))
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -269,7 +287,7 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
 
                   Row(
                     children: [
-                      Expanded(child: _buildTextField(_rankController, '순위', '예: 1', isNumber: true)),
+                      Expanded(child: _buildTextField(_rankController, '순위', '예: 1 (선택)', isNumber: true)),
                       const SizedBox(width: 16),
                       Expanded(
                         child: GestureDetector(
@@ -345,7 +363,7 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
           labelText: label, hintText: hint, border: const OutlineInputBorder(), contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         ),
         validator: (value) {
-          if (label.contains('할인율') || label.contains('추가 태그')) return null;
+          if (label.contains('할인율') || label.contains('추가 태그') || label.contains('순위')) return null;
           if (value == null || value.isEmpty) return '입력해주세요';
           return null;
         },

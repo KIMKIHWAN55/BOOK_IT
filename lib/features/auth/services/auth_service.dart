@@ -61,25 +61,56 @@ class AuthService {
     }
   }
 
-  // 구글 로그인
+// 구글 로그인 + Firestore 자동 저장 로직 추가
   Future<UserCredential?> signInWithGoogle() async {
+    UserCredential? credential;
     if (kIsWeb) {
       final provider = GoogleAuthProvider();
-      return await _auth.signInWithPopup(provider);
+      credential = await _auth.signInWithPopup(provider);
     } else {
       await _googleSignIn.initialize(
         serverClientId: '318946402557-h2ub52o8ltcj0cqssgfnk0pn4sscbash.apps.googleusercontent.com',
       );
 
       final GoogleSignInAccount? googleUser = await _googleSignIn.authenticate();
-      if (googleUser == null) return null; // 사용자가 로그인 취소함
+      if (googleUser == null) return null;
 
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      final AuthCredential credential = GoogleAuthProvider.credential(
+      final AuthCredential authCredential = GoogleAuthProvider.credential(
         idToken: googleAuth.idToken,
       );
 
-      return await _auth.signInWithCredential(credential);
+      credential = await _auth.signInWithCredential(authCredential);
+    }
+
+    // 🌟 [추가됨] 로그인 성공 시 Firestore에 유저 정보가 없으면 저장
+    if (credential != null && credential.user != null) {
+      await _syncGoogleUserToFirestore(credential.user!);
+    }
+
+    return credential;
+  }
+
+  // 🌟 [추가됨] 구글 유저 전용 DB 동기화 함수
+  Future<void> _syncGoogleUserToFirestore(User user) async {
+    final userDoc = await _firestore.collection('users').doc(user.uid).get();
+
+    if (!userDoc.exists) {
+      // 1. 처음 로그인한 유저라면 문서를 생성합니다.
+      await _firestore.collection('users').doc(user.uid).set({
+        'email': user.email,
+        'role': 'user', // 기본 권한
+        'name': user.displayName ?? '이름 없음',
+        'nickname': user.displayName ?? '익명', // 구글 이름을 기본 닉네임으로
+        'phone': user.phoneNumber ?? '', // 구글은 보통 번호가 null일 수 있음
+        'photoUrl': user.photoURL,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } else {
+      // 2. 이미 있는 유저라면 로그인 시간이나 프로필 사진 정도만 업데이트 (선택 사항)
+      await _firestore.collection('users').doc(user.uid).update({
+        'photoUrl': user.photoURL,
+      });
     }
   }
 

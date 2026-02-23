@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../book/models/book_model.dart';
 import '../controllers/admin_controller.dart';
+import '../../../shared/widgets/custom_network_image.dart';
 
 class AdminPromotionScreen extends ConsumerStatefulWidget {
   const AdminPromotionScreen({super.key});
@@ -153,10 +154,10 @@ class _AdminPromotionScreenState extends ConsumerState<AdminPromotionScreen> {
                         subtitle: Text("${book.author} · ${book.category}", style: const TextStyle(color: Colors.grey, fontSize: 12)),
                         secondary: ClipRRect(
                           borderRadius: BorderRadius.circular(4),
-                          child: Image.network(
-                            book.imageUrl,
-                            width: 40, height: 60, fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(width: 40, color: Colors.grey),
+                          child: CustomNetworkImage(
+                            imageUrl: book.imageUrl,
+                            width: 40,
+                            height: 60,
                           ),
                         ),
                       ),

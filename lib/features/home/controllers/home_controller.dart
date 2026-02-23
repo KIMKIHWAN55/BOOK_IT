@@ -111,21 +111,22 @@ class HomeNotifier extends Notifier<HomeState> {
   Future<List<BookModel>> _fetchBestSellerBooks() async {
     final snapshot = await FirebaseFirestore.instance
         .collection('books')
+        .where('rank', isGreaterThan: 0)
         .orderBy('rank', descending: false) // 1. DB에서 오름차순 정렬 1차 요청
-        .limit(50) // 2. 순위가 없는(rank: 0) 책이 상단을 차지할 경우를 대비해 넉넉히 50권 호출
+        .limit(30) // 2. 15위까지 필요하니 30권정도 호출
         .get();
 
-    // 3. 1위부터 9위까지의 책만 걸러냄
+    // 3. 1위부터 15위까지의 책만 걸러냄
     var books = snapshot.docs
         .map((doc) => BookModel.fromFirestore(doc))
-        .where((book) => book.rank >= 1 && book.rank <= 9)
+        .where((book) => book.rank >= 1 && book.rank <= 15)
         .toList();
 
     // 4. 🌟 [가장 중요] DB에 과거 문자형/숫자형 데이터가 섞여 있어도 무시하고, 앱에서 무조건 1, 2, 3 순서로 강제 정렬!
     books.sort((a, b) => a.rank.compareTo(b.rank));
 
-    // 5. 정렬된 상태에서 최종적으로 9개만 잘라서 화면에 전달
-    return books.take(9).toList();
+    // 5. 정렬된 상태에서 최종적으로 15개만 잘라서 화면에 전달
+    return books.take(15).toList();
   }
 }
 

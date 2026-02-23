@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:bookit_app/features/book/views/book_detail_screen.dart';
 import 'package:bookit_app/features/home/controllers/home_controller.dart';
+import '../../../shared/widgets/custom_network_image.dart';
 
 // 🌟 [추가] 업그레이드 된 공통 상단바 Import
 import '../../../shared/widgets/custom_app_bar.dart';
@@ -193,8 +194,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildPickCard(String imageUrl) {
-    // 🌟 1. 여기서 인코딩된 안전한 URL을 만들고
-    final safeUrl = 'https://wsrv.nl/?url=${Uri.encodeComponent(imageUrl)}';
+    // 프록시 로직은 CustomNetworkImage 안에 있으므로 지워줍니다!
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 10),
@@ -204,13 +204,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(6),
-        child: Image.network(
-          safeUrl, // 🌟 2. 여기서 진짜로 적용합니다! (노란 줄 경고 해결)
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => Container(
-            color: Colors.grey[300],
-            child: const Icon(Icons.book, color: Colors.grey, size: 40),
-          ),
+        child: CustomNetworkImage(
+          imageUrl: imageUrl, // 원본 URL을 그대로 넘깁니다.
         ),
       ),
     );
@@ -233,17 +228,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
-            child: Image.network(
-              safeUrl, // 🌟 2. 여기서 진짜로 적용합니다! (노란 줄 경고 해결)
+            child: CustomNetworkImage(
+              imageUrl: imageUrl, // 원본 URL을 그대로 넘깁니다.
               width: 73,
               height: 110,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
-                width: 73,
-                height: 110,
-                color: Colors.grey[300],
-                child: const Icon(Icons.book, color: Colors.grey),
-              ),
             ),
           ),
           const SizedBox(width: 27),

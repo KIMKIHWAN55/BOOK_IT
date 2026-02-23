@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
+import '../../../shared/widgets/custom_network_image.dart';
 import '../models/book_model.dart';
 import '../controllers/library_controller.dart';
 import '../../board/views/write_review_screen.dart';
@@ -136,13 +136,18 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
                         var data = docs[index].data() as Map<String, dynamic>;
 
-                        // BookModel로 변환 (purchased_books에 저장된 필드 위주로 맵핑)
+                        // 🌟 BookModel 필수 파라미터(tags, description) 추가 완료!
                         BookModel book = BookModel(
                           id: data['id'] ?? docs[index].id,
                           title: data['title'] ?? '제목 없음',
                           imageUrl: data['imageUrl'] ?? '',
                           author: data['author'] ?? '작자 미상',
-                          rank: 0, rating: '', reviewCount: '', category: '',
+                          rank: 0,
+                          rating: '',
+                          reviewCount: '',
+                          category: '',
+                          tags: [],          // 👈 추가됨
+                          description: '',   // 👈 추가됨
                         );
 
                         return Positioned(
@@ -162,10 +167,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                                       blurRadius: 8
                                   ),
                                 ],
-                                image: DecorationImage(
-                                  image: NetworkImage(book.imageUrl),
-                                  fit: BoxFit.cover,
-                                  onError: (_, __) => const AssetImage('assets/images/placeholder.png'), // 에러 시 처리 추가
+                              ),
+                              // 🌟 CustomNetworkImage 교체 완료 및 double 타입 명시
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(2),
+                                child: CustomNetworkImage(
+                                  imageUrl: book.imageUrl,
+                                  width: 79.0,
+                                  height: 120.0,
                                 ),
                               ),
                             ),
@@ -238,7 +247,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         height: 415,
         child: Opacity(
           opacity: 0.1,
-          child: Image.network('https://via.placeholder.com/415x415?text=Shelf+Shadow'),
+          child: CustomNetworkImage(
+            imageUrl: 'https://via.placeholder.com/415x415?text=Shelf+Shadow',
+          ),
         ),
       ),
     );
