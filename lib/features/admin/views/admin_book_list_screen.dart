@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../book/models/book_model.dart';
 import '../controllers/admin_controller.dart';
 import 'admin_add_book_screen.dart';
+import '../../../shared/widgets//custom_network_image.dart';
 
 class AdminBookListScreen extends ConsumerWidget {
   const AdminBookListScreen({super.key});
@@ -61,9 +62,11 @@ class AdminBookListScreen extends ConsumerWidget {
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: ListTile(
-                  leading: book.imageUrl.isNotEmpty
-                      ? Image.network(book.imageUrl, width: 40, height: 60, fit: BoxFit.cover)
-                      : Container(width: 40, height: 60, color: Colors.grey),
+                  leading: CustomNetworkImage(
+                    imageUrl: book.imageUrl,
+                    width: 40,
+                    height: 60,
+                  ),
                   title: Text(book.title, style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text("${book.author} | ${book.rank}위"),
                   trailing: IconButton(

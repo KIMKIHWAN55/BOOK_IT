@@ -27,52 +27,58 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-// 🌟 이메일 로그인 로직
+  // 🌟 이메일 로그인 로직
   Future<void> _handleEmailLogin() async {
-    // 1. 로그인 버튼 누르면 키보드부터 깔끔하게 내리기 (아까 본 로그 방지)
+    // 1. 키보드부터 깔끔하게 내리기
     FocusScope.of(context).unfocus();
 
-    final errorMessage = await ref.read(authControllerProvider.notifier).login(
-      _emailController.text.trim(),
-      _passwordController.text.trim(),
-    );
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    // 🌟 [핵심 디테일 추가] 빈 칸인 경우 서버로 보내지 않고 앱에서 즉시 차단! (속도 향상 및 비용 절감)
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('아이디와 비밀번호를 모두 입력해주세요.')),
+      );
+      return;
+    }
+
+    // 2. 서버로 로그인 요청
+    final errorMessage = await ref.read(authControllerProvider.notifier).login(email, password);
 
     if (!mounted) return; // 화면이 닫혔으면 중단
 
     if (errorMessage != null) {
-      // 2. 에러가 났을 때 스낵바 띄우기
+      // 3. 에러 발생 시 한국어 메시지 띄우기 (AuthService에서 변환해둔 그 메시지!)
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(errorMessage)),
       );
     } else {
-      // 🌟 3. [추가됨] 로그인이 성공(errorMessage == null)하면 메인 화면으로 강제 이동!
-      // 이전 인증 화면들을 싹 지우고(pushNamedAndRemoveUntil) 메인으로 갑니다.
+      // 4. 성공 시 메인 화면으로 이동
       Navigator.pushNamedAndRemoveUntil(context, AppRouter.main, (route) => false);
     }
   }
 
   // 🌟 구글 로그인 로직
   Future<void> _handleGoogleLogin() async {
-    // 구글 로그인창 뜨기 전에 키보드 내리기
     FocusScope.of(context).unfocus();
 
     final errorMessage = await ref.read(authControllerProvider.notifier).loginWithGoogle();
 
-    if (!mounted) return; // 화면이 닫혔으면 중단
+    if (!mounted) return;
 
     if (errorMessage != null && errorMessage != 'cancel') {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(errorMessage)),
       );
     } else if (errorMessage == null) {
-      // 🌟 [추가됨] 구글 로그인 성공 시 메인 화면으로 강제 이동!
       Navigator.pushNamedAndRemoveUntil(context, AppRouter.main, (route) => false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // 🌟 1. 로딩 상태 구독 (bool 타입을 직접 받음!)
+    // 🌟 로딩 상태 구독
     final isLoading = ref.watch(authControllerProvider).isLoading;
 
     return Scaffold(
@@ -96,14 +102,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                   CustomTextField(
                     controller: _emailController,
-                    hint: '아이디',
+                    hint: '아이디 (이메일)',
                     keyboardType: TextInputType.emailAddress,
                   ),
 
                   CustomTextField(
                     controller: _passwordController,
                     hint: '비밀번호',
-                    isObscure: true,
+                    isObscure: true, // 비밀번호 * 처리
                   ),
 
                   Row(
@@ -118,7 +124,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   PrimaryButton(
                     text: '로그인',
                     onPressed: _handleEmailLogin,
-                    isLoading: isLoading,
+                    isLoading: isLoading, // 🌟 버튼 내부의 스피너와 연동
                   ),
 
                   const SizedBox(height: 28),
@@ -157,7 +163,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     children: [
                       const Text('아직 회원이 아니신가요? ', style: TextStyle(fontSize: 14, color: AppColors.textSub)),
                       GestureDetector(
-                        // 🌟 3. AppRouter 적용
                         onTap: () {
                           if (!isLoading) Navigator.pushNamed(context, AppRouter.signup);
                         },
@@ -171,6 +176,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
           ),
 
+          // 🌟 로딩 중일 때 투명한 막을 씌워 화면 터치(연타) 완벽 차단!
           if (isLoading)
             Container(
               color: Colors.transparent,
@@ -192,7 +198,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           Container(
             width: 22, height: 22,
             decoration: BoxDecoration(
-              color: _rememberId ? AppColors.primary : Colors.transparent, // 🌟 색상 변경
+              color: _rememberId ? AppColors.primary : Colors.transparent,
               borderRadius: BorderRadius.circular(6),
               border: Border.all(color: _rememberId ? AppColors.primary : AppColors.border),
             ),
@@ -209,13 +215,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Row(
       children: [
         TextButton(
-          // 🌟 3. AppRouter 적용
           onPressed: () => Navigator.pushNamed(context, AppRouter.findId),
           child: const Text('아이디 찾기', style: TextStyle(color: AppColors.textSub)),
         ),
         const Text('|', style: TextStyle(color: AppColors.border)),
         TextButton(
-          // 🌟 3. AppRouter 적용
           onPressed: () => Navigator.pushNamed(context, AppRouter.findPw),
           child: const Text('비밀번호 찾기', style: TextStyle(color: AppColors.textSub)),
         ),

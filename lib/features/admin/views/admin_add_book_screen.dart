@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../book/models/book_model.dart';
 import '../controllers/admin_controller.dart';
+import '../repositories/admin_repository.dart'; // 🌟 API 호출을 위해 추가
 
 class AdminAddBookScreen extends ConsumerStatefulWidget {
   final BookModel? bookToEdit;
@@ -17,7 +18,6 @@ class AdminAddBookScreen extends ConsumerStatefulWidget {
 class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // 컨트롤러들은 UI 요소이므로 그대로 둡니다.
   late TextEditingController _titleController;
   late TextEditingController _authorController;
   late TextEditingController _rankController;
@@ -27,9 +27,9 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
   late TextEditingController _tagsController;
 
   File? _selectedImage;
+  String? _fetchedImageUrl; // 🌟 API로 가져온 무료 공용 이미지 URL
   final ImagePicker _picker = ImagePicker();
 
-  // 선택된 카테고리
   String _selectedCategory = '';
 
   final List<String> _categoryList = [
@@ -52,6 +52,7 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
     _priceController = TextEditingController(text: book?.price.toString() ?? '');
     _discountController = TextEditingController(text: book?.discountRate?.toString() ?? '');
     _tagsController = TextEditingController(text: book?.tags.join(', ') ?? '');
+    _fetchedImageUrl = book?.imageUrl; // 수정 모드일 때 기존 URL 유지
 
     if (book != null) {
       _selectedCategory = book.category;
@@ -72,27 +73,61 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
 
   Future<void> _pickImage() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) setState(() => _selectedImage = File(image.path));
+    if (image != null) {
+      setState(() {
+        _selectedImage = File(image.path);
+        _fetchedImageUrl = null; // 직접 이미지를 올리면 API 이미지는 지움
+      });
+    }
+  }
+
+  // ====================================================================
+  // 🌟 [핵심 마법] 카카오 서버에 검색해서 빈칸 자동으로 채우기!
+  // ====================================================================
+  Future<void> _searchFromKakao() async {
+    final query = _titleController.text.trim();
+    if (query.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('검색할 책 제목을 먼저 입력해주세요.')));
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('카카오 서버에서 책 정보를 불러오는 중... 🔍')));
+
+    FocusScope.of(context).unfocus(); // 키보드 내리기
+    final result = await ref.read(adminRepositoryProvider).searchBookFromKakao(query);
+
+    if (result != null) {
+      setState(() {
+        _titleController.text = result['title'] ?? _titleController.text;
+        _authorController.text = (result['authors'] as List).join(', ');
+        _descriptionController.text = result['contents'] ?? '';
+        _priceController.text = result['price']?.toString() ?? '';
+
+        // Storage 요금을 0원으로 만들어줄 썸네일 URL!
+        _fetchedImageUrl = result['thumbnail'];
+        _selectedImage = null; // 기존 첨부 파일 초기화
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('책 정보 자동완성 완료! ✨')));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('검색 결과가 없습니다.')));
+    }
   }
 
   Future<void> _submitForm() async {
-    //제출 시작 시 키보드 내리기
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
-    // 카테고리 검사
     if (_selectedCategory.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('카테고리를 선택해주세요!')));
       return;
     }
 
-    // 이미지 검사 (새 등록일 때)
-    if (widget.bookToEdit == null && _selectedImage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('책 표지 이미지를 등록해주세요! 📷')));
+    // 🌟 폰에서 직접 올린 사진도 없고, API로 가져온 URL도 없으면 차단
+    if (_selectedImage == null && (_fetchedImageUrl == null || _fetchedImageUrl!.isEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('책 표지 이미지를 등록하거나 검색해주세요! 📷')));
       return;
     }
 
-    // 태그 리스트 생성 로직
     List<String> tagsList = _tagsController.text.isNotEmpty
         ? _tagsController.text.split(',').map((e) => e.trim()).toList()
         : [];
@@ -101,12 +136,11 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
       tagsList.add(_selectedCategory);
     }
 
-    // 모델 생성 (이미지 URL은 Controller에서 처리)
     final tempBook = BookModel(
       id: widget.bookToEdit?.id ?? '',
       title: _titleController.text,
       author: _authorController.text,
-      imageUrl: widget.bookToEdit?.imageUrl ?? '', // 기존 URL 혹은 빈 값
+      imageUrl: _fetchedImageUrl ?? '', // 🌟 API로 가져온 URL을 그대로 DB에 저장!
       rank: int.tryParse(_rankController.text) ?? 0,
       category: _selectedCategory,
       rating: widget.bookToEdit?.rating ?? '0.0',
@@ -119,26 +153,15 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
 
     final isEditing = widget.bookToEdit != null;
 
-    // Riverpod Controller 호출
     final success = await ref.read(adminControllerProvider.notifier).registerBook(
       book: tempBook,
-      newImage: _selectedImage,
+      newImage: _selectedImage, // 만약 새로 올린 사진이 있다면 이것만 업로드됨
       isEditing: isEditing,
     );
 
     if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(isEditing ? '책 수정 완료! ✏️' : '책 등록 성공! 📚')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isEditing ? '책 수정 완료! ✏️' : '책 등록 성공! 📚')));
       Navigator.pop(context);
-    } else if (mounted) {
-      // 에러 처리는 Controller state listener 혹은 여기서 간단히 처리
-      final errorState = ref.read(adminControllerProvider);
-      if (errorState.hasError) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('에러 발생: ${errorState.error}')),
-        );
-      }
     }
   }
 
@@ -160,9 +183,7 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
                     return ListTile(
                       title: Text(_categoryList[index]),
                       onTap: () {
-                        setState(() {
-                          _selectedCategory = _categoryList[index];
-                        });
+                        setState(() => _selectedCategory = _categoryList[index]);
                         Navigator.pop(context);
                       },
                     );
@@ -178,16 +199,12 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Riverpod 상태 구독 (로딩 체크용)
     final adminState = ref.watch(adminControllerProvider);
     final isLoading = adminState.isLoading;
-
     final isEditing = widget.bookToEdit != null;
-    final appBarTitle = isEditing ? "책 수정하기 (관리자)" : "책 등록하기 (관리자)";
-    final buttonText = isEditing ? "책 수정 완료" : "책 등록 완료";
 
     return Scaffold(
-      appBar: AppBar(title: Text(appBarTitle)),
+      appBar: AppBar(title: Text(isEditing ? "책 수정하기" : "책 등록하기")),
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -197,7 +214,6 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 이미지 선택 영역
                   GestureDetector(
                     onTap: _pickImage,
                     child: Container(
@@ -205,23 +221,52 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
                       decoration: BoxDecoration(
                         color: Colors.grey[200], borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: Colors.grey[400]!),
+                        // 🌟 API로 가져온 이미지를 보여주는 로직
                         image: _selectedImage != null
                             ? DecorationImage(image: FileImage(_selectedImage!), fit: BoxFit.cover)
-                            : (isEditing && widget.bookToEdit!.imageUrl.isNotEmpty)
-                            ? DecorationImage(image: NetworkImage(widget.bookToEdit!.imageUrl), fit: BoxFit.cover)
+                            : (_fetchedImageUrl != null && _fetchedImageUrl!.isNotEmpty)
+                            ? DecorationImage(image: NetworkImage(_fetchedImageUrl!), fit: BoxFit.cover)
                             : null,
                       ),
-                      child: (_selectedImage == null && (!isEditing || widget.bookToEdit!.imageUrl.isEmpty))
+                      child: (_selectedImage == null && (_fetchedImageUrl == null || _fetchedImageUrl!.isEmpty))
                           ? const Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.camera_alt, color: Colors.grey, size: 40), SizedBox(height: 8), Text("표지 등록", style: TextStyle(color: Colors.grey))])
                           : null,
                     ),
                   ),
                   const SizedBox(height: 20),
 
-                  _buildTextField(_titleController, '책 제목', '예: Paradox'),
-                  _buildTextField(_authorController, '작가', '예: 호베루투 카를로스'),
+                  // 🌟 [수정됨] 제목 입력칸 옆에 API 검색 버튼 추가
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: _buildTextField(_titleController, '책 제목', '예: 데미안'),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        flex: 1,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 12.0),
+                          child: SizedBox(
+                            height: 54, // 텍스트필드와 높이 맞춤
+                            child: ElevatedButton(
+                              onPressed: isLoading ? null : _searchFromKakao,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF21212F),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                padding: EdgeInsets.zero,
+                              ),
+                              child: const Text('API 검색', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
 
-                  // 순위 및 카테고리 선택 UI
+                  _buildTextField(_authorController, '작가', '예: 헤르만 헤세'),
+
                   Row(
                     children: [
                       Expanded(child: _buildTextField(_rankController, '순위', '예: 1', isNumber: true)),
@@ -233,19 +278,13 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
                             height: 56,
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
                             decoration: BoxDecoration(
-                              color: Colors.white,
-                              border: Border.all(color: const Color(0xFFC2C2C2)),
+                              color: Colors.white, border: Border.all(color: const Color(0xFFC2C2C2)),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             alignment: Alignment.centerLeft,
                             child: Text(
                               _selectedCategory.isEmpty ? "카테고리" : _selectedCategory,
-                              style: TextStyle(
-                                fontFamily: 'Pretendard',
-                                fontSize: 14,
-                                color: _selectedCategory.isEmpty ? const Color(0xFF767676) : Colors.black,
-                                letterSpacing: -0.025,
-                              ),
+                              style: TextStyle(fontSize: 14, color: _selectedCategory.isEmpty ? const Color(0xFF767676) : Colors.black),
                             ),
                           ),
                         ),
@@ -273,7 +312,6 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
                   ),
                   const SizedBox(height: 30),
 
-                  // 등록 버튼
                   SizedBox(
                     width: double.infinity, height: 50,
                     child: ElevatedButton(
@@ -282,19 +320,16 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
                         backgroundColor: isEditing ? Colors.orangeAccent : Colors.blueAccent,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
-                      child: Text(buttonText, style: const TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
+                      child: Text(isEditing ? "책 수정 완료" : "책 등록 완료", style: const TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 40),
                 ],
               ),
             ),
           ),
           if (isLoading)
-            Container(
-                color: Colors.black.withOpacity(0.5),
-                child: const Center(child: CircularProgressIndicator(color: Colors.white))
-            ),
+            Container(color: Colors.black.withOpacity(0.5), child: const Center(child: CircularProgressIndicator(color: Colors.white))),
         ],
       ),
     );

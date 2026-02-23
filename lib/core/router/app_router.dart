@@ -47,13 +47,18 @@ import '../../features/admin/views/admin_book_list_screen.dart';
 import '../../features/admin/views/admin_promotion_screen.dart';
 
 // -----------------------------------------------------------------------------
-// 🌟 7. Board (게시판 및 글쓰기) 화면 [추가됨]
+// 7. Board (게시판 및 글쓰기) 화면
 // -----------------------------------------------------------------------------
 import '../../features/board/models/post_model.dart';
 import '../../features/board/views/post_board_screen.dart';
 import '../../features/board/views/post_detail_screen.dart';
 import '../../features/board/views/write_post_screen.dart';
 import '../../features/board/views/write_review_screen.dart';
+
+// -----------------------------------------------------------------------------
+// 🌟 8. Chat (AI 채팅) 화면 [추가됨]
+// -----------------------------------------------------------------------------
+import '../../features/chat/views/chat_screen.dart';
 
 class AppRouter {
   // ===========================================================================
@@ -92,11 +97,14 @@ class AppRouter {
   static const String adminBookList = '/admin_book_list';
   static const String adminPromotion = '/admin_promotion';
 
-  // 🌟 Board [추가됨]
+  // Board
   static const String postBoard = '/post_board';
   static const String postDetail = '/post_detail';
   static const String writePost = '/write_post';
   static const String writeReview = '/write_review';
+
+  // 🌟 Chat [추가됨]
+  static const String chat = '/chat';
 
   // ===========================================================================
   // 2. 경로에 따라 화면을 매칭해주는 함수
@@ -187,23 +195,25 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const AdminPromotionScreen());
 
     // -----------------------------------------------------
-    // 🌟 [게시판 및 글쓰기 관련 추가]
+    // [게시판 및 글쓰기 관련 추가]
     // -----------------------------------------------------
       case postBoard:
         return MaterialPageRoute(builder: (_) => const PostBoardScreen());
-
-    // 🌟 [수정 완료] arguments로 넘어온 데이터를 PostModel로 변환해서 넘겨줌!
       case writePost:
         final postToEdit = routeSettings.arguments as PostModel?;
         return MaterialPageRoute(builder: (_) => WritePostScreen(editingPost: postToEdit));
-
       case writeReview:
-      // 🌟 화면 이동 시 전달한 book 데이터를 받아서 리뷰 화면으로 넘겨줌
         final book = routeSettings.arguments as BookModel;
         return MaterialPageRoute(builder: (_) => WriteReviewScreen(book: book));
       case postDetail:
-        final post = routeSettings.arguments as PostModel; // 게시글 객체 전달받기
+        final post = routeSettings.arguments as PostModel;
         return MaterialPageRoute(builder: (_) => PostDetailScreen(post: post));
+
+    // -----------------------------------------------------
+    // 🌟 [AI 채팅 화면 관련 추가]
+    // -----------------------------------------------------
+      case chat:
+        return MaterialPageRoute(builder: (_) => const ChatScreen());
 
     // -----------------------------------------------------
     // [예외 처리] 등록되지 않은 경로

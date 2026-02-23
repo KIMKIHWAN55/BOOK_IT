@@ -60,7 +60,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('이번달 베스트 셀러', style: _ptStyle(size: 20, weight: FontWeight.w600)),
-                  Text('더보기', style: _ptStyle(size: 14, weight: FontWeight.w400, color: const Color(0xFF767676))),
+
+                  // 🌟 [수정됨] 이제 더보기 글씨를 누를 수 있습니다!
+                  GestureDetector(
+                    onTap: () {
+                      // 💡TODO: 나중에 '베스트셀러 전체보기' 전용 화면을 만들면 여기 연결!
+                      // 지금은 임시로 스낵바를 띄우거나, 검색 화면으로 보내도 좋습니다.
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('베스트셀러 전체보기 화면 준비 중입니다.')),
+                      );
+                    },
+                    child: Text('더보기', style: _ptStyle(size: 14, weight: FontWeight.w400, color: const Color(0xFF767676))),
+                  ),
                 ],
               ),
             ),
@@ -129,6 +140,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+// 🌟 [완벽 리팩토링] 9개의 리스트를 3개씩 묶어서 가로 스와이프 가능하게 변경!
   Widget _buildBestSellerList(List<dynamic> books) {
     if (books.isEmpty) {
       return const Padding(
@@ -137,31 +149,53 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       );
     }
 
-    return Column(
-      children: books.map((book) {
-        return GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => BookDetailScreen(book: book),
-              ),
-            );
-          },
-          child: _buildBestsellerItem(
-            rank: book.rank.toString(),
-            title: book.title,
-            author: book.author,
-            imageUrl: book.imageUrl,
-            rating: book.rating,
-            reviewCount: book.reviewCount,
-          ),
-        );
-      }).toList(),
+    // 1. 데이터를 3개씩 한 묶음(Page)으로 쪼개는 실무 로직 (Chunking)
+    List<List<dynamic>> pages = [];
+    for (int i = 0; i < books.length; i += 3) {
+      int end = (i + 3 < books.length) ? i + 3 : books.length;
+      pages.add(books.sublist(i, end));
+    }
+
+    // 2. 가로로 스와이프 가능한 PageView 생성
+    return SizedBox(
+      height: 390, // 책 3개가 세로로 딱 들어갈 맞춤 높이
+      child: PageView.builder(
+        controller: PageController(viewportFraction: 1.0), // 한 화면에 한 페이지 꽉 차게
+        itemCount: pages.length, // 총 3페이지 (9개 기준)
+        itemBuilder: (context, pageIndex) {
+          final pageBooks = pages[pageIndex]; // 이번 페이지에 보여줄 3권의 책
+
+          return Column(
+            children: pageBooks.map((book) {
+              return GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => BookDetailScreen(book: book),
+                    ),
+                  );
+                },
+                child: _buildBestsellerItem(
+                  rank: book.rank.toString(),
+                  title: book.title,
+                  author: book.author,
+                  imageUrl: book.imageUrl,
+                  rating: book.rating,
+                  reviewCount: book.reviewCount,
+                ),
+              );
+            }).toList(),
+          );
+        },
+      ),
     );
   }
 
   Widget _buildPickCard(String imageUrl) {
+    // 🌟 1. 여기서 인코딩된 안전한 URL을 만들고
+    final safeUrl = 'https://wsrv.nl/?url=${Uri.encodeComponent(imageUrl)}';
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
@@ -171,9 +205,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(6),
         child: Image.network(
-          imageUrl,
+          safeUrl, // 🌟 2. 여기서 진짜로 적용합니다! (노란 줄 경고 해결)
           fit: BoxFit.cover,
-          // 🌟 [수정 3] 이미지 로딩 실패 시 앱이 터지지 않도록 방어 코드 추가
           errorBuilder: (context, error, stackTrace) => Container(
             color: Colors.grey[300],
             child: const Icon(Icons.book, color: Colors.grey, size: 40),
@@ -191,6 +224,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     required String rating,
     required String reviewCount,
   }) {
+    // 🌟 1. 여기서 인코딩된 안전한 URL을 만들고
+    final safeUrl = 'https://wsrv.nl/?url=${Uri.encodeComponent(imageUrl)}';
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
       child: Row(
@@ -198,11 +234,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: Image.network(
-              imageUrl,
+              safeUrl, // 🌟 2. 여기서 진짜로 적용합니다! (노란 줄 경고 해결)
               width: 73,
               height: 110,
               fit: BoxFit.cover,
-              // 🌟 [수정 3] 이미지 로딩 실패 시 앱이 터지지 않도록 방어 코드 추가
               errorBuilder: (context, error, stackTrace) => Container(
                 width: 73,
                 height: 110,

@@ -26,15 +26,42 @@ class AuthService {
   // 1. 로그인 관련 로직
   // ==========================================
 
-  // 이메일/비밀번호 로그인
+  // 🌟 [수정됨] 이메일/비밀번호 로그인 (친절한 에러 메시지 번역 추가)
   Future<UserCredential> signInWithEmail(String email, String password) async {
-    return await _auth.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
+    try {
+      return await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+    } on FirebaseAuthException catch (e) {
+      String errorMessage = '로그인 중 오류가 발생했습니다.';
+      switch (e.code) {
+        case 'user-not-found':
+          errorMessage = '가입되지 않은 이메일입니다.';
+          break;
+        case 'wrong-password':
+          errorMessage = '비밀번호가 일치하지 않습니다.';
+          break;
+        case 'invalid-email':
+          errorMessage = '잘못된 이메일 형식입니다.';
+          break;
+        case 'user-disabled':
+          errorMessage = '정지된 계정입니다. 고객센터에 문의해주세요.';
+          break;
+        case 'too-many-requests':
+          errorMessage = '로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.';
+          break;
+        case 'invalid-credential': // 💡 최신 파이어베이스 보안 정책 대응 (이메일/비번 오류 통합)
+          errorMessage = '이메일 또는 비밀번호가 일치하지 않습니다.';
+          break;
+      }
+      throw Exception(errorMessage);
+    } catch (e) {
+      throw Exception('알 수 없는 오류가 발생했습니다.');
+    }
   }
 
-  // 구글 로그인 (요청하신 대로 원본 코드 유지)
+  // 구글 로그인
   Future<UserCredential?> signInWithGoogle() async {
     if (kIsWeb) {
       final provider = GoogleAuthProvider();
@@ -170,9 +197,20 @@ class AuthService {
     return snapshot.docs.isNotEmpty;
   }
 
-  // 비밀번호 재설정 이메일 발송
+  // 🌟 [수정됨] 비밀번호 재설정 이메일 발송 (에러 처리 추가)
   Future<void> sendPasswordResetEmail(String email) async {
-    await _auth.sendPasswordResetEmail(email: email);
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') {
+        throw Exception('가입되지 않은 이메일입니다.');
+      } else if (e.code == 'invalid-email') {
+        throw Exception('잘못된 이메일 형식입니다.');
+      }
+      throw Exception('이메일 발송 중 오류가 발생했습니다.');
+    } catch (e) {
+      throw Exception('알 수 없는 오류가 발생했습니다.');
+    }
   }
 
   // ==========================================
