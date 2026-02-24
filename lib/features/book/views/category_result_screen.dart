@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/book_model.dart';
 import '../controllers/category_controller.dart';
 import 'book_detail_screen.dart';
+import '../../../shared/widgets/custom_network_image.dart';
 
 class CategoryResultScreen extends ConsumerWidget {
   final String category; // 선택된 카테고리 이름 (예: "SF")
@@ -58,13 +59,24 @@ class CategoryResultScreen extends ConsumerWidget {
                       child: Container(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
-                          image: DecorationImage(
-                            image: NetworkImage(book.imageUrl),
+                          // 🌟 기존에 있던 image: DecorationImage(...) 부분을 삭제합니다.
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                              offset: const Offset(2, 4),
+                            )
+                          ],
+                        ),
+                        // 🌟 Container의 자식(child)으로 CustomNetworkImage를 넣습니다.
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8), // 이미지가 컨테이너의 둥근 모서리를 넘지 않도록 잘라줌
+                          child: CustomNetworkImage(
+                            imageUrl: book.imageUrl,
+                            width: double.infinity,
+                            height: double.infinity,
                             fit: BoxFit.cover,
                           ),
-                          boxShadow: [
-                            BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(2, 4))
-                          ],
                         ),
                       ),
                     ),

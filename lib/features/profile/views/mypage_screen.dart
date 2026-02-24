@@ -14,6 +14,7 @@ import 'package:bookit_app/shared/widgets/post_card.dart';
 import '../../book/models/book_model.dart';
 import '../../book/views/book_detail_screen.dart';
 import '../../../core/router/app_router.dart';
+import '../../../shared/widgets/custom_network_image.dart';
 
 // 🌟 [추가] 분리해둔 공통 상단 바 위젯 Import
 import '../../../shared/widgets/custom_app_bar.dart';
@@ -23,47 +24,54 @@ final bookItemDetailProvider = FutureProvider.family<BookModel?, String>((ref, b
   return await ref.read(profileActionControllerProvider).getBookDetail(bookId);
 });
 
-// 🌟 [추가] 좋아요한 책들의 '실제 데이터'를 조회해 가장 많이 나온 장르 3개를 뽑아주는 Provider
+
+// 🌟 [수정] 좋아요한 책들의 '실제 데이터'를 조회해 가장 많이 나온 카테고리(장르) 3개를 뽑아주는 Provider
 final topGenresProvider = FutureProvider.autoDispose<List<String>?>((ref) async {
-  // 1. 좋아요한 책 목록(요약본) 불러오기
-  final likedBooksSnapshot = await ref.watch(likedBooksProvider.future);
-  final docs = likedBooksSnapshot.docs;
+  try {
+    // 1. 좋아요한 책 목록 불러오기
+    final likedBooksSnapshot = await ref.watch(likedBooksProvider.future);
+    final docs = likedBooksSnapshot.docs;
 
-  // 좋아요한 책이 하나도 없으면 null 반환
-  if (docs.isEmpty) return null;
+    if (docs.isEmpty) return null;
 
-  Map<String, int> tagCounts = {};
-  final profileController = ref.read(profileActionControllerProvider);
+    Map<String, int> categoryCounts = {};
+    final profileController = ref.watch(profileActionControllerProvider);
 
-  // 2. 각 책의 '전체 상세 정보'를 가져와서 태그(장르) 수집
-  for (var doc in docs) {
-    BookModel listBookModel = BookModel.fromFirestore(doc);
-    final fullBook = await profileController.getBookDetail(listBookModel.id);
+    // 2. 각 책의 상세 정보 가져오기
+    for (var doc in docs) {
+      try {
+        // 🌟 기존의 BookModel.fromFirestore(doc) 대신 id만 안전하게 뽑아옵니다. (데이터 파싱 에러 원천 차단)
+        final String bookId = doc.id;
+        final fullBook = await profileController.getBookDetail(bookId);
 
-    if (fullBook != null) {
-      final tags = fullBook.tags;
+        if (fullBook != null) {
+          final category = fullBook.category.trim();
 
-      if (tags.isNotEmpty) {
-        for (var tag in tags) {
-          final cleanTag = tag.replaceAll('#', '').trim();
-          if (cleanTag.isNotEmpty) {
-            tagCounts[cleanTag] = (tagCounts[cleanTag] ?? 0) + 1;
+          // 카테고리가 비어있지 않고, 기본값이 아닌 경우에만 카운트
+          if (category.isNotEmpty && category != 'general') {
+            categoryCounts[category] = (categoryCounts[category] ?? 0) + 1;
           }
         }
+      } catch (innerError) {
+        // 🌟 특정 책 하나를 불러오다 에러가 나도 앱이 터지지 않고 다음 책으로 넘어갑니다.
+        debugPrint("개별 책($doc.id) 정보 로드 실패 (무시됨): $innerError");
+        continue;
       }
     }
+
+    if (categoryCounts.isEmpty) return [];
+
+    // 빈도수가 높은 순으로 정렬 후 상위 3개 추출
+    var sortedCategories = categoryCounts.keys.toList()
+      ..sort((a, b) => categoryCounts[b]!.compareTo(categoryCounts[a]!));
+
+    return sortedCategories.take(3).toList();
+
+  } catch (e) {
+    // 전체 스트림이나 네트워크에 치명적인 에러가 발생했을 때
+    throw Exception("장르 분석 실패: $e");
   }
-
-  // 전체 정보를 다 뒤져봐도 태그가 없으면 빈 리스트 반환
-  if (tagCounts.isEmpty) return [];
-
-  // 빈도수가 높은 순으로 정렬 후 상위 3개 추출
-  var sortedTags = tagCounts.keys.toList()
-    ..sort((a, b) => tagCounts[b]!.compareTo(tagCounts[a]!));
-
-  return sortedTags.take(3).toList();
 });
-
 class MyPageScreen extends ConsumerStatefulWidget {
   const MyPageScreen({super.key});
 
@@ -288,7 +296,13 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> with SingleTickerPr
                               );
                             },
                             loading: () => const Text("선호 장르 분석 중...", style: TextStyle(fontFamily: 'Pretendard', fontSize: 14, color: Colors.grey)),
-                            error: (_, __) => const Text("장르를 불러올 수 없어요", style: TextStyle(fontFamily: 'Pretendard', fontSize: 14, color: Colors.grey)),
+                            // 🌟 에러 메시지(e)를 화면에 직접 출력해서 뭐가 문제인지 바로 알 수 있게 변경!
+                            error: (e, _) => Text(
+                              "장르 오류: $e",
+                              style: const TextStyle(fontFamily: 'Pretendard', fontSize: 12, color: Colors.red),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ],
                       ),
@@ -532,17 +546,18 @@ class LikedBookListItem extends ConsumerWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(6),
                   color: Colors.grey[200],
-                  image: displayBook.imageUrl.isNotEmpty
-                      ? DecorationImage(
-                    image: NetworkImage(displayBook.imageUrl),
-                    fit: BoxFit.cover,
-                    onError: (e, s) {},
-                  )
-                      : null,
                 ),
-                child: displayBook.imageUrl.isEmpty
-                    ? const Icon(Icons.book, color: Colors.grey)
-                    : null,
+                child: displayBook.imageUrl.isNotEmpty
+                    ? ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: CustomNetworkImage(
+                    imageUrl: displayBook.imageUrl,
+                    width: 73,
+                    height: 110,
+                    fit: BoxFit.cover,
+                  ),
+                )
+                    : const Icon(Icons.book, color: Colors.grey),
               ),
               const SizedBox(width: 20),
               // 책 텍스트 정보

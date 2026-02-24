@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../shared/widgets/custom_network_image.dart';
 
 import '../../book/views/book_detail_screen.dart';
 import '../controllers/profile_controller.dart';
@@ -98,17 +99,23 @@ class _LikedBooksScreenState extends ConsumerState<LikedBooksScreen> {
                           child: Container(
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(8),
-                              image: DecorationImage(
-                                image: NetworkImage(data['imageUrl'] ?? ''),
-                                fit: BoxFit.cover,
-                              ),
                               boxShadow: [
                                 BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2)
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
                                 ),
                               ],
+                            ),
+                            // 🌟 NetworkImage 대신 CustomNetworkImage 사용 (ClipRRect로 둥근 모서리 적용)
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: CustomNetworkImage(
+                                imageUrl: data['imageUrl'] ?? '',
+                                width: double.infinity,
+                                height: double.infinity,
+                                fit: BoxFit.cover,
+                              ),
                             ),
                           ),
                         ),

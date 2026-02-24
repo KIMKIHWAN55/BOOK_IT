@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../controllers/chat_controller.dart'; // 🌟 아까 만든 컨트롤러 임포트
+import '../../board/controllers/board_controller.dart';
+import '../../book/views/book_detail_screen.dart';
 
 // 🌟 State 대신 ConsumerState를 사용하여 Riverpod 상태 감지
 class ChatScreen extends ConsumerStatefulWidget {
@@ -126,7 +128,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  // 말풍선 (기존과 동일)
+// 말풍선 및 책 보러가기 버튼 UI
   Widget _buildChatBubble(ChatMessage message) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
@@ -163,7 +165,53 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           ),
                           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5, offset: const Offset(0, 2))],
                         ),
-                        child: Text(message.text, style: TextStyle(color: message.isMe ? Colors.white : Colors.black, fontSize: 15, height: 1.4)),
+                        // 🌟 [핵심 변경] 단순 Text 대신 Column으로 감싸서 버튼을 추가할 수 있게 변경
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // 1. 기존 AI 텍스트
+                            Text(message.text, style: TextStyle(color: message.isMe ? Colors.white : Colors.black, fontSize: 15, height: 1.4)),
+
+                            // 2. 책 ID가 존재한다면 '책 보러가기' 버튼 띄우기
+                            if (message.bookId != null) ...[
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: () async {
+                                    try {
+                                      // 🌟 질문자님이 만들어두신 boardControllerProvider 사용!
+                                      final book = await ref.read(boardControllerProvider).getBookDetail(message.bookId!);
+
+                                      if (book != null && context.mounted) {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(builder: (context) => BookDetailScreen(book: book)),
+                                        );
+                                      } else if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("책 정보를 찾을 수 없습니다.")));
+                                      }
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("오류가 발생했습니다.")));
+                                      }
+                                    }
+                                  },
+                                  icon: const Icon(Icons.auto_stories, size: 18),
+                                  label: const Text("책 보러가기", style: TextStyle(fontWeight: FontWeight.bold)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFD45858), // 예쁜 빨간색 버튼
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                ),
+                              ),
+                            ]
+                          ],
+                        ),
                       ),
                     ),
 

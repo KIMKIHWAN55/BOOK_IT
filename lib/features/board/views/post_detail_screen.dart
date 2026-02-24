@@ -294,13 +294,18 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     );
   }
 
-  // 헬퍼: 하단 입력창 위젯
+// 헬퍼: 하단 입력창 위젯
   Widget _buildBottomInput() {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -5))
+        ],
       ),
       child: Row(
         children: [
@@ -308,17 +313,42 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: const Color(0xFFF5F6F8),
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: const Color(0xFFE5E5E5)),
               ),
-              child: TextField(
-                controller: _commentController,
-                decoration: const InputDecoration(
-                  hintText: "댓글을 입력하세요...",
-                  border: InputBorder.none,
-                  hintStyle: TextStyle(color: Color(0xFF999999), fontSize: 14),
+              // 🌟 [최종 해결책] Theme 위젯으로 감싸서 글로벌 테마(빨간색)를 완벽히 차단!
+              child: Theme(
+                data: Theme.of(context).copyWith(
+                  // 메인 컬러를 검정/회색으로 덮어쓰기
+                  primaryColor: Colors.black,
+                  colorScheme: Theme.of(context).colorScheme.copyWith(
+                    primary: Colors.black,
+                  ),
+                  // 글자 드래그 시 배경색 & 복사 물방울 커서 색상까지 전부 무채색으로 강제 고정
+                  textSelectionTheme: const TextSelectionThemeData(
+                    cursorColor: Colors.black,
+                    selectionColor: Color(0xFFEEEEEE),
+                    selectionHandleColor: Colors.black,
+                  ),
                 ),
-                style: const TextStyle(fontSize: 14),
+                child: TextField(
+                  controller: _commentController,
+                  cursorColor: Colors.black,
+                  decoration: const InputDecoration(
+                    hintText: "댓글을 입력하세요...",
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(vertical: 12),
+                    hintStyle: TextStyle(color: Color(0xFF999999), fontSize: 14),
+                  ),
+                  style: const TextStyle(fontSize: 14, color: Colors.black),
+                ),
               ),
             ),
           ),
@@ -329,7 +359,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
               padding: const EdgeInsets.all(10),
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
-                color: Color(0xFFD45858),
+                color: Color(0xFFD45858), // 종이비행기 버튼은 빨간색 유지
               ),
               child: const Icon(Icons.send, color: Colors.white, size: 20),
             ),

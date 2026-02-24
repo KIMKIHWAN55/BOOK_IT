@@ -5,6 +5,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 
+// 🌟 [추가 1] 날짜 포맷 초기화를 위한 import
+import 'package:intl/date_symbol_data_local.dart';
+
 import 'firebase_options.dart';
 import 'core/router/app_router.dart';
 import 'core/constants/app_colors.dart';
@@ -23,7 +26,10 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-//  [수정] 개발(테스트) 중에는 App Check가 에뮬레이터에서 작동하지 않으므로 잠시 꺼둠
+  // 🌟 [추가 2] intl 한국어(ko_KR) 지역 설정 초기화
+  await initializeDateFormatting('ko_KR', null);
+
+  // [수정] 개발(테스트) 중에는 App Check가 에뮬레이터에서 작동하지 않으므로 잠시 꺼둠
   // 나중에 앱 출시할때 주석해제
   /*
   await FirebaseAppCheck.instance.activate(
