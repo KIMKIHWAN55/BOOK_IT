@@ -1,0 +1,30 @@
+name: Deploy to Firebase Hosting on merge
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 1. Flutter 설치 단계 추가
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      # 2. 패키지 설치 및 웹 빌드 (init 과정에서 설정한 스크립트가 여기 들어갑니다)
+      - name: Build Web
+        run: |
+          flutter pub get
+          flutter build web
+
+      # 3. Firebase 배포 (이 부분은 Firebase가 자동으로 생성해 준 코드를 그대로 유지하세요)
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_YOUR_PROJECT_ID }}'
+          channelId: live
+          projectId: BookIT

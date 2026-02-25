@@ -125,9 +125,28 @@ class ProfileRepository {
   Future<void> sendPasswordResetEmail() async {
     final user = _auth.currentUser;
     if (user != null && user.email != null) {
-      await _auth.sendPasswordResetEmail(email: user.email!);
-    } else {
-      throw Exception("사용자 이메일 정보를 찾을 수 없습니다.");
+      //구글로 로그인한 유저인지 체크
+      final isGoogleUser = user.providerData.any((info) => info.providerId == 'google.com');
+
+      if (isGoogleUser) {
+        throw Exception("구글 로그인 사용자는 비밀번호를 변경할 수 없습니다.");
+      }
+
+      // 이메일/비밀번호 가입자인 경우 발송 및 에러 구체화
+      try {
+        await _auth.sendPasswordResetEmail(email: user.email!);
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'invalid-email') {
+          throw Exception('잘못된 이메일 형식입니다.');
+        } else if (e.code == 'user-not-found') {
+          throw Exception('가입되지 않은 이메일입니다.');
+        } else {
+          throw Exception('이메일 발송 실패 (${e.code})');
+        }
+      } catch (e) {
+        throw Exception('알 수 없는 오류가 발생했습니다.');
+      }
+
     }
   }
 

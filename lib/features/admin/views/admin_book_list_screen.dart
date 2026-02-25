@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../book/models/book_model.dart';
 import '../controllers/admin_controller.dart';
 import 'admin_add_book_screen.dart';
-import '../../../shared/widgets//custom_network_image.dart';
+import '../../../shared/widgets/custom_network_image.dart';
 
 class AdminBookListScreen extends ConsumerWidget {
   const AdminBookListScreen({super.key});
@@ -22,7 +22,6 @@ class AdminBookListScreen extends ConsumerWidget {
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
-
               await ref.read(adminControllerProvider.notifier).deleteBook(book.id, book.imageUrl);
             },
             child: const Text("삭제", style: TextStyle(color: Colors.red)),
@@ -34,55 +33,85 @@ class AdminBookListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final booksAsync = ref.watch(adminBooksProvider);
+    // 🌟 [핵심 변경] 원본 대신 '검색+정렬'이 적용된 파생 Provider를 구독합니다!
+    final booksAsync = ref.watch(filteredAndSortedBooksProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text("등록된 책 관리")),
-      body: booksAsync.when(
-        // 데이터 로딩 중
-        loading: () => const Center(child: CircularProgressIndicator()),
+      body: Column(
+        children: [
+          // 상단 검색 바
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: '책 제목 또는 저자 검색',
+                prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                filled: true,
+                fillColor: Colors.grey[200],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+              ),
+              onChanged: (value) {
+                // 글자를 입력할 때마다 검색어 상태를 업데이트
+                ref.read(adminSearchQueryProvider.notifier).updateQuery(value);
+              },
+            ),
+          ),
 
-        // 에러 발생 시
-        error: (error, stack) => Center(child: Text('에러 발생: $error')),
+          // 하단 리스트 영역
+          Expanded(
+            child: booksAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, stack) => Center(child: Text('에러 발생: $error')),
+              data: (books) {
+                if (books.isEmpty) {
+                  return const Center(child: Text("검색 결과가 없거나 등록된 책이 없습니다."));
+                }
 
-        // 데이터 성공 시
-        data: (books) {
-          if (books.isEmpty) {
-            return const Center(child: Text("등록된 책이 없습니다."));
-          }
+                return ListView.builder(
+                  itemCount: books.length,
+                  itemBuilder: (context, index) {
+                    final book = books[index];
 
-          return ListView.builder(
-            itemCount: books.length,
-            itemBuilder: (context, index) {
-              final book = books[index];
-
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: ListTile(
-                  leading: CustomNetworkImage(
-                    imageUrl: book.imageUrl,
-                    width: 40,
-                    height: 60,
-                  ),
-                  title: Text(book.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text("${book.author} | ${book.rank}위"),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.grey),
-                    onPressed: () => _confirmDelete(context, ref, book),
-                  ),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => AdminAddBookScreen(bookToEdit: book),
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: ListTile(
+                        leading: CustomNetworkImage(
+                          imageUrl: book.imageUrl,
+                          width: 40,
+                          height: 60,
+                        ),
+                        title: Text(
+                          "${book.rank}위 | ${book.title}",
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text("${book.author} | 평점 ${book.rating}"),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.grey),
+                          onPressed: () => _confirmDelete(context, ref, book),
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => AdminAddBookScreen(bookToEdit: book),
+                            ),
+                          );
+                        },
                       ),
                     );
                   },
-                ),
-              );
-            },
-          );
-        },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

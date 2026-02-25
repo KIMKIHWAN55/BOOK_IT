@@ -62,7 +62,7 @@ class CategoryScreen extends StatelessWidget {
               context: context,
               title: "인문/문학",
               items: [
-                _CategoryItem("에세이/시", ""),
+                _CategoryItem("에세이/시", "assets/images/시,에세이.png"),
                 _CategoryItem("철학", "assets/images/철학.png"),
                 _CategoryItem("심리", "assets/images/심리.png"),
                 _CategoryItem("동화", "assets/images/동화.png"),
@@ -76,7 +76,7 @@ class CategoryScreen extends StatelessWidget {
               items: [
                 _CategoryItem("한국사", "assets/images/한국사.png"),
                 _CategoryItem("세계사", "assets/images/세계사.png"),
-                _CategoryItem("종교", ""),
+                _CategoryItem("종교", "assets/images/종교.png"),
                 _CategoryItem("정치", "assets/images/정치.png"),
                 _CategoryItem("사회", "assets/images/사회.png"),
                 _CategoryItem("경제", "assets/images/경제.png"),

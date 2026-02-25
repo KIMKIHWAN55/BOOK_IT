@@ -82,9 +82,7 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
     }
   }
 
-  // ====================================================================
   //  카카오 서버에 검색해서 빈칸 자동으로 채움
-  // ====================================================================
   Future<void> _searchFromKakao() async {
     final query = _titleController.text.trim();
     if (query.isEmpty) {

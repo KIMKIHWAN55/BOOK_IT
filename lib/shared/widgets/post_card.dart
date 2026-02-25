@@ -7,6 +7,7 @@ import 'package:bookit_app/features/board/models/post_model.dart';
 import 'package:bookit_app/features/board/repositories/board_repository.dart';
 import 'package:bookit_app/features/book/views/book_detail_screen.dart';
 import '../../../shared/widgets/custom_network_image.dart';
+import '../../features/book/models/book_model.dart';
 
 import '../../../core/router/app_router.dart';
 
@@ -135,7 +136,7 @@ class PostCard extends ConsumerWidget {
                   }
                 }
               },
-              child: _buildBookInfoCard(post),
+              child: _buildBookInfoCard(post, ref),
             ),
 
           const SizedBox(height: 20),
@@ -230,45 +231,57 @@ class PostCard extends ConsumerWidget {
     );
   }
 
-  // 책 정보 위젯
-  Widget _buildBookInfoCard(PostModel post) {
-    return Container(
-      height: 110,
-      decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFF1F1F5)),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: CustomNetworkImage(
-              imageUrl: post.bookImageUrl ?? '',
-              width: 73,
-              height: 110,
+// 책정보위젯
+  Widget _buildBookInfoCard(PostModel post, WidgetRef ref) {
+    final controller = ref.read(boardControllerProvider);
+
+    return FutureBuilder<BookModel?>(
+        future: controller.getBookDetail(post.bookId!), // 최신 책 정보 가져오기
+        builder: (context, snapshot) {
+          // 데이터를 불러오는 중일 때나 에러가 났을 때는 일단 게시글에 저장된 예전 값을 임시로 보여줌
+          final rating = snapshot.hasData ? snapshot.data!.rating : post.bookRating;
+          final reviewCount = snapshot.hasData ? snapshot.data!.reviewCount : post.bookReviewCount;
+
+          return Container(
+            height: 110,
+            decoration: BoxDecoration(
+              border: Border.all(color: const Color(0xFFF1F1F5)),
+              borderRadius: BorderRadius.circular(12),
             ),
-          ),
-          const SizedBox(width: 20),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Row(
               children: [
-                Text(post.bookTitle ?? '', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
-                Text(post.bookAuthor ?? '', style: const TextStyle(fontSize: 14, color: Color(0xFF777777))),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.star, color: Color(0xFFFBBC05), size: 14),
-                    const SizedBox(width: 2),
-                    Text("${post.bookRating} (${post.bookReviewCount})", style: const TextStyle(fontSize: 12, color: Color(0xFF777777))),
-                  ],
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: CustomNetworkImage(
+                    imageUrl: post.bookImageUrl ?? '',
+                    width: 73,
+                    height: 110,
+                  ),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(post.bookTitle ?? '', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
+                      Text(post.bookAuthor ?? '', style: const TextStyle(fontSize: 14, color: Color(0xFF777777))),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.star, color: Color(0xFFFBBC05), size: 14),
+                          const SizedBox(width: 2),
+                          // 최신 평점과 리뷰 수를 표시
+                          Text("$rating ($reviewCount)", style: const TextStyle(fontSize: 12, color: Color(0xFF777777))),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-          ),
-        ],
-      ),
+          );
+        }
     );
   }
 
@@ -296,7 +309,7 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
 
   // 대댓글 작성을 위한 상태 변수
   String? _replyingToCommentId; // 어떤 댓글에 답글을 다는지
-  String? _replyingToNickname;  // 누구에게 답글을 다는지 (UI 표시용)
+  String? _replyingToNickname;  // 누구에게 답글을 다는지
 
   @override
   void dispose() {
@@ -331,7 +344,7 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
             const Text("댓글", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
 
-            // 1. 댓글 리스트
+            // 댓글 리스트
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: ref.read(boardRepositoryProvider).getCommentsStream(widget.post.id),
@@ -380,7 +393,7 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // 닉네임 & 시간 & 삭제 버튼
+                                  // 닉네임 / 시간 / 삭제 버튼
                                   Row(
                                     children: [
                                       Text(cData['nickname'] ?? '익명', style: TextStyle(fontWeight: FontWeight.w600, color: isDeleted ? Colors.grey : Colors.black)),
@@ -399,7 +412,6 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
                                   ),
                                   const SizedBox(height: 4),
 
-                                  // 내용 (삭제된 글이면 회색 처리)
                                   Text(
                                     cData['content'] ?? '',
                                     style: TextStyle(
@@ -434,7 +446,7 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
               ),
             ),
 
-            // 2. 대댓글 작성 중일 때 표시되는 상태 바
+            // 대댓글 작성 중일 때 표시되는 상태 바
             if (_replyingToCommentId != null)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -455,7 +467,7 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
                 ),
               ),
 
-            // 3. 댓글 입력창
+            // 댓글 입력창
             Row(
               children: [
                 Expanded(
