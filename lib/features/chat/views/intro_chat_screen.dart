@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
-// 🌟 [추가] 분리해둔 공통 상단 바 위젯 Import
 import '../../../shared/widgets/custom_app_bar.dart';
 
 class IntroChatScreen extends StatelessWidget {
@@ -10,26 +9,23 @@ class IntroChatScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF2ECFF), // 배경: #F2ECFF
+      backgroundColor: const Color(0xFFF2ECFF),
 
-      // 🌟 [수정 완료] 수십 줄의 상단 바 코드가 단 한 줄로 깔끔하게 정리되었습니다!
       appBar: const CustomAppBar(
-        showCart: true, // 장바구니 아이콘 켜기
-        backgroundColor: Color(0xFFEDE5FE), // 배경색을 연한 보라색으로 덮어쓰기
+        showCart: true,
+        backgroundColor: Color(0xFFEDE5FE),
       ),
 
       body: Stack(
         children: [
-          // Component 9: 중앙 배경 레이어
           Positioned(
             top: 0,
             left: 0,
             right: 0,
-            bottom: 76, // 네비바 공간 제외
+            bottom: 76,
             child: Container(color: const Color(0xFFEDE5FE)),
           ),
 
-          // Blob 16 (Yellow)
           Positioned(
             top: 58,
             left: 16,
@@ -46,7 +42,6 @@ class IntroChatScreen extends StatelessWidget {
             ),
           ),
 
-          // Blob 15 (Blue)
           Positioned(
             top: 10,
             left: 237,
@@ -63,7 +58,6 @@ class IntroChatScreen extends StatelessWidget {
             ),
           ),
 
-          // Blob 9 (Teal)
           Positioned(
             top: 399,
             left: 257,
@@ -77,7 +71,6 @@ class IntroChatScreen extends StatelessWidget {
             ),
           ),
 
-          // Blob 18 (Pink)
           Positioned(
             top: 447,
             left: 25,
@@ -94,7 +87,7 @@ class IntroChatScreen extends StatelessWidget {
             ),
           ),
 
-          // 부기 캐릭터 (BOOOLK 1 / Component 7 영역)
+          // 부기 캐릭터
           Center(
             child: Padding(
               padding: const EdgeInsets.only(top: 80),
@@ -136,9 +129,9 @@ class IntroChatScreen extends StatelessWidget {
             ),
           ),
 
-          // "부기와 대화 하러 가기" 버튼 (Group 150)
+          // 부기와 대화 하러 가기 버튼
           Positioned(
-            bottom: 106, // navi(76) + 여유공간
+            bottom: 106,
             left: 0,
             right: 0,
             child: Center(
@@ -157,7 +150,7 @@ class IntroChatScreen extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: () => Navigator.pushNamed(context, '/chat'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF9854E0), // Rectangle 5872
+                    backgroundColor: const Color(0xFF9854E0),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(100),

@@ -1,6 +1,6 @@
 import 'dart:io';
-import 'dart:convert'; // 🌟 json 파싱을 위해 추가
-import 'package:http/http.dart' as http; // 🌟 HTTP 통신을 위해 추가
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -66,7 +66,7 @@ class AdminRepository {
   Future<void> deleteBook(String docId, String imageUrl) async {
     try {
       // 1. Storage 이미지 삭제
-      // 🌟 카카오 API 이미지(http://...)가 아닌, 파이어베이스 스토리지에 직접 올린 사진일 때만 지우도록 방어 로직 추가!
+      //  카카오 API 이미지(http)가 아닌, 파이어베이스 스토리지에 직접 올린 사진일 때만 지우도록 방어 로직
       if (imageUrl.isNotEmpty && imageUrl.contains('firebasestorage.googleapis.com')) {
         try {
           await _storage.refFromURL(imageUrl).delete();
@@ -78,18 +78,17 @@ class AdminRepository {
       // 2. 일괄 처리(Batch) 장바구니 생성
       final batch = _firestore.batch();
 
-      // (1) 📚 원본 책 데이터 삭제 추가
+      //  원본 책 데이터 삭제 추가
       final bookRef = _firestore.collection('books').doc(docId);
       batch.delete(bookRef);
 
-      // (2) 🏆 프로모션(주간 추천) 배열에서 이 책의 ID만 쏙 빼기 (배열 요소 삭제)
+      // 주간 추천 배열에서 이 책의 ID만 쏙 빼기 (배열 요소 삭제)
       final promoRef = _firestore.collection('promotions').doc('weekly_recommend');
       batch.update(promoRef, {
-        'bookIds': FieldValue.arrayRemove([docId]) // 🌟 이 부분이 핵심입니다!
+        'bookIds': FieldValue.arrayRemove([docId])
       });
 
-      // (3) ❤️ 좋아요(likes) 컬렉션 연쇄 삭제 (예시)
-      // 주의: 실제 파이어베이스의 '좋아요' 컬렉션 이름과, 책 ID를 저장하는 필드명('bookId')에 맞게 수정하세요.
+      //  좋아요(likes) 컬렉션 연쇄 삭제
       final likesSnapshot = await _firestore.collection('likes')
           .where('bookId', isEqualTo: docId)
           .get();
@@ -97,8 +96,7 @@ class AdminRepository {
         batch.delete(doc.reference);
       }
 
-      // (4) 📝 게시판(board) 연쇄 삭제 (예시)
-      // 주의: 실제 파이어베이스의 '게시판' 컬렉션 이름과 필드명에 맞게 수정하세요.
+      //  게시판 연쇄 삭제
       final boardSnapshot = await _firestore.collection('board')
           .where('bookId', isEqualTo: docId)
           .get();
@@ -106,7 +104,7 @@ class AdminRepository {
         batch.delete(doc.reference);
       }
 
-      // 3. 장바구니에 담은 모든 삭제/수정 명령을 한 번에 실행!
+      // 3. 장바구니에 담은 모든 삭제/수정 명령을 한 번에 실행
       await batch.commit();
 
     } catch (e) {
@@ -114,7 +112,7 @@ class AdminRepository {
     }
   }
 
-  // 🌟 주간 추천 도서(promotions) 업데이트
+  //  주간 추천 도서 업데이트
   Future<void> updateWeeklyRecommend(List<String> bookIds) async {
     await _firestore.collection('promotions').doc('weekly_recommend').set({
       'bookIds': bookIds,
@@ -123,11 +121,11 @@ class AdminRepository {
   }
 
   // ====================================================================
-  // 🌟 [핵심 추가] 카카오 책 검색 API 연동 (클래스 닫히기 직전 위치!)
+  //   카카오 책 검색 API 연동
   // ====================================================================
   Future<Map<String, dynamic>?> searchBookFromKakao(String query) async {
     // 💡 테스트용 임시 카카오 REST API 키입니다. (나중에 직접 발급받은 키로 교체하세요!)
-    const String kakaoRestApiKey = '0a0c99ec9771b7cbb9be4a33b572180e'; // 임시 예시 키
+    const String kakaoRestApiKey = '0a0c99ec9771b7cbb9be4a33b572180e';
 
     final url = Uri.parse('https://dapi.kakao.com/v3/search/book?query=$query');
 
@@ -138,7 +136,7 @@ class AdminRepository {
       );
 
       if (response.statusCode == 200) {
-        // 🌟 한글 데이터 깨짐 방지를 위해 utf8.decode 적용
+        //  한글 데이터 깨짐 방지를 위해 utf8 적용
         final data = json.decode(utf8.decode(response.bodyBytes));
         if (data['documents'] != null && data['documents'].isNotEmpty) {
           return data['documents'][0]; // 가장 정확도가 높은 첫 번째 검색 결과 반환

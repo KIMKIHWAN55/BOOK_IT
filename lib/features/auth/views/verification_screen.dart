@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // 🌟 Riverpod 추가
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../profile/views/profile_setup_screen.dart';
 import '../controllers/verification_controller.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../shared/widgets/primary_button.dart';
 
-// 🌟 StatefulWidget ➡️ ConsumerStatefulWidget
 class VerificationScreen extends ConsumerStatefulWidget {
   final String email;
   final String password;
@@ -39,7 +38,6 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
     _controllers = List.generate(4, (_) => TextEditingController());
     _focusNodes = List.generate(4, (_) => FocusNode());
 
-    // 🌟 화면 진입 시 타이머 시작 명령 내리기 (마이크로태스크로 안전하게 호출)
     Future.microtask(() => ref.read(verificationControllerProvider.notifier).startTimer());
   }
 
@@ -47,7 +45,6 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
   void dispose() {
     for (var c in _controllers) { c.dispose(); }
     for (var f in _focusNodes) { f.dispose(); }
-    // 🌟 _controller.dispose() 삭제 (AutoDispose가 알아서 처리해줍니다!)
     super.dispose();
   }
 
@@ -55,7 +52,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
     _currentCode = _controllers.map((c) => c.text).join();
     if (value.isNotEmpty && index < 3) _focusNodes[index + 1].requestFocus();
     if (value.isEmpty && index > 0) _focusNodes[index - 1].requestFocus();
-    setState(() {}); // 현재 입력된 4자리 코드를 위한 로컬 상태 변경
+    setState(() {});
   }
 
   Future<void> _handleResend() async {
@@ -104,7 +101,6 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 🌟 상태 감시 (ListenableBuilder 대체)
     final state = ref.watch(verificationControllerProvider);
 
     return Scaffold(
@@ -141,7 +137,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                   ),
                   const SizedBox(height: 24),
                   Center(
-                    child: state.timeLeft > 0 // 🌟 state 변수 사용
+                    child: state.timeLeft > 0 //
                         ? Text('코드 입력까지 ${state.timeLeft}초 남았습니다.', style: const TextStyle(fontSize: 14, color: AppColors.textSub))
                         : state.isResending
                         ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
@@ -151,7 +147,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                 ],
               ),
             ),
-            if (state.isLoading) // 🌟 state 변수 사용
+            if (state.isLoading)
               Container(color: Colors.black.withOpacity(0.5), child: const Center(child: CircularProgressIndicator(color: AppColors.primary))),
           ],
         ),
@@ -162,7 +158,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
           child: PrimaryButton(
             text: '입력 완료',
             onPressed: (_currentCode.length == 4) ? _handleSubmit : null,
-            isLoading: state.isLoading, // 🌟 state 변수 사용
+            isLoading: state.isLoading,
           ),
         ),
       ),

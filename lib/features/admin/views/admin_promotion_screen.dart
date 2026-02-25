@@ -13,7 +13,6 @@ class AdminPromotionScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminPromotionScreenState extends ConsumerState<AdminPromotionScreen> {
-  // 체크된 책들의 ID를 저장할 리스트
   List<String> _selectedBookIds = [];
   bool _isLoading = true;
   bool _isSaving = false;
@@ -24,7 +23,7 @@ class _AdminPromotionScreenState extends ConsumerState<AdminPromotionScreen> {
     _loadCurrentRecommendations();
   }
 
-  // 1. 기존에 등록되어 있던 추천 도서 목록을 불러와서 미리 체크해둠
+  // 기존에 등록되어 있던 추천 도서 목록을 불러와서 미리 체크해둠
   Future<void> _loadCurrentRecommendations() async {
     try {
       final doc = await FirebaseFirestore.instance.collection('promotions').doc('weekly_recommend').get();
@@ -43,25 +42,24 @@ class _AdminPromotionScreenState extends ConsumerState<AdminPromotionScreen> {
     }
   }
 
-  // 2. 체크박스 선택/해제 토글 로직
+  // 체크박스 선택/해제 토글
   void _toggleSelection(String bookId) {
     setState(() {
       if (_selectedBookIds.contains(bookId)) {
         _selectedBookIds.remove(bookId); // 이미 있으면 제거 (체크 해제)
       } else {
-        // 🌟 실무 팁: UI가 망가지지 않도록 추천 도서 개수를 5개로 제한
         if (_selectedBookIds.length >= 5) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('추천 도서는 최대 5개까지만 선택 가능합니다.')),
           );
           return;
         }
-        _selectedBookIds.add(bookId); // 없으면 추가 (체크)
+        _selectedBookIds.add(bookId);
       }
     });
   }
 
-  // 3. 서버에 저장하기
+  // 서버에 저장
   Future<void> _saveRecommendations() async {
     if (_selectedBookIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('최소 1권 이상의 책을 선택해주세요.')));
@@ -71,12 +69,11 @@ class _AdminPromotionScreenState extends ConsumerState<AdminPromotionScreen> {
     setState(() => _isSaving = true);
 
     try {
-      // AdminController의 저장 함수 호출
       await ref.read(adminControllerProvider.notifier).updateRecommendedBooks(_selectedBookIds);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('이번 주 추천 도서가 업데이트 되었습니다!')));
-        Navigator.pop(context); // 저장 후 뒤로가기
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
@@ -104,7 +101,6 @@ class _AdminPromotionScreenState extends ConsumerState<AdminPromotionScreen> {
           style: TextStyle(fontFamily: 'Pretendard', fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
         ),
         actions: [
-          // 🌟 저장 버튼
           TextButton(
             onPressed: _isLoading || _isSaving ? null : _saveRecommendations,
             child: _isSaving

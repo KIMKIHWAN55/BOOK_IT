@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../book/models/book_model.dart';
 import '../controllers/admin_controller.dart';
-import '../repositories/admin_repository.dart'; // 🌟 API 호출을 위해 추가
+import '../repositories/admin_repository.dart';
 import '../../../shared/widgets/custom_network_image.dart';
 
 class AdminAddBookScreen extends ConsumerStatefulWidget {
@@ -28,7 +28,7 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
   late TextEditingController _tagsController;
 
   File? _selectedImage;
-  String? _fetchedImageUrl; // 🌟 API로 가져온 무료 공용 이미지 URL
+  String? _fetchedImageUrl;
   final ImagePicker _picker = ImagePicker();
 
   String _selectedCategory = '';
@@ -53,7 +53,7 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
     _priceController = TextEditingController(text: book?.price.toString() ?? '');
     _discountController = TextEditingController(text: book?.discountRate?.toString() ?? '');
     _tagsController = TextEditingController(text: book?.tags.join(', ') ?? '');
-    _fetchedImageUrl = book?.imageUrl; // 수정 모드일 때 기존 URL 유지
+    _fetchedImageUrl = book?.imageUrl;
 
     if (book != null) {
       _selectedCategory = book.category;
@@ -77,13 +77,13 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
     if (image != null) {
       setState(() {
         _selectedImage = File(image.path);
-        _fetchedImageUrl = null; // 직접 이미지를 올리면 API 이미지는 지움
+        _fetchedImageUrl = null;
       });
     }
   }
 
   // ====================================================================
-  // 🌟 [핵심 마법] 카카오 서버에 검색해서 빈칸 자동으로 채우기!
+  //  카카오 서버에 검색해서 빈칸 자동으로 채움
   // ====================================================================
   Future<void> _searchFromKakao() async {
     final query = _titleController.text.trim();
@@ -94,7 +94,7 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('카카오 서버에서 책 정보를 불러오는 중... 🔍')));
 
-    FocusScope.of(context).unfocus(); // 키보드 내리기
+    FocusScope.of(context).unfocus();
     final result = await ref.read(adminRepositoryProvider).searchBookFromKakao(query);
 
     if (result != null) {
@@ -104,7 +104,7 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
         _descriptionController.text = result['contents'] ?? '';
         _priceController.text = result['price']?.toString() ?? '';
 
-        // Storage 요금을 0원으로 만들어줄 썸네일 URL!
+        // API로 이미지 가져온경우 내가 등록한 이미지는 삭제
         _fetchedImageUrl = result['thumbnail'];
         _selectedImage = null; // 기존 첨부 파일 초기화
       });
@@ -123,7 +123,7 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
       return;
     }
 
-    // 🌟 폰에서 직접 올린 사진도 없고, API로 가져온 URL도 없으면 차단
+    // 폰에서 직접 올린 사진도 없고, API로 가져온 URL도 없으면 차단
     if (_selectedImage == null && (_fetchedImageUrl == null || _fetchedImageUrl!.isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('책 표지 이미지를 등록하거나 검색해주세요! 📷')));
       return;
@@ -141,7 +141,7 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
       id: widget.bookToEdit?.id ?? '',
       title: _titleController.text,
       author: _authorController.text,
-      imageUrl: _fetchedImageUrl ?? '', // 🌟 API로 가져온 URL을 그대로 DB에 저장!
+      imageUrl: _fetchedImageUrl ?? '',
       rank: int.tryParse(_rankController.text) ?? 0,
       category: _selectedCategory,
       rating: widget.bookToEdit?.rating ?? '0.0',
@@ -224,22 +224,17 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: Colors.grey[400]!),
                       ),
-                      // 🌟 이미지가 둥근 테두리를 뚫고 나가지 않도록 ClipRRect로 감싸줍니다.
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(7),
                         child: _selectedImage != null
-                        // 1. 갤러리에서 직접 고른 사진 (내부 파일) 🔴 교체 안 함!
                             ? Image.file(_selectedImage!, fit: BoxFit.cover)
 
                             : (_fetchedImageUrl != null && _fetchedImageUrl!.isNotEmpty)
-                        // 2. API로 불러온 사진 (웹 주소) 🟢 커스텀 위젯으로 교체!
                             ? CustomNetworkImage(
                           imageUrl: _fetchedImageUrl!,
                           width: 120,
                           height: 180,
                         )
-
-                        // 3. 사진이 아예 없을 때 (초기 상태)
                             : const Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -253,7 +248,6 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // 🌟 [수정됨] 제목 입력칸 옆에 API 검색 버튼 추가
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -267,7 +261,7 @@ class _AdminAddBookScreenState extends ConsumerState<AdminAddBookScreen> {
                         child: Padding(
                           padding: const EdgeInsets.only(bottom: 12.0),
                           child: SizedBox(
-                            height: 54, // 텍스트필드와 높이 맞춤
+                            height: 54,
                             child: ElevatedButton(
                               onPressed: isLoading ? null : _searchFromKakao,
                               style: ElevatedButton.styleFrom(

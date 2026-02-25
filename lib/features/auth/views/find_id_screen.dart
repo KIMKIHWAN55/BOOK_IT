@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // 🌟 Riverpod 추가
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../controllers/find_id_controller.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../shared/widgets/primary_button.dart';
 import '../../../shared/widgets/custom_text_field.dart';
 
-// 🌟 StatefulWidget ➡️ ConsumerStatefulWidget 변경
 class FindIdScreen extends ConsumerStatefulWidget {
   const FindIdScreen({super.key});
 
@@ -15,7 +14,6 @@ class FindIdScreen extends ConsumerStatefulWidget {
 }
 
 class _FindIdScreenState extends ConsumerState<FindIdScreen> {
-  // _controller 인스턴스 삭제됨
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
@@ -32,7 +30,6 @@ class _FindIdScreenState extends ConsumerState<FindIdScreen> {
   }
 
   Future<void> _handleSearchId() async {
-    // 🌟 ref.read로 컨트롤러 함수 호출
     final errorMessage = await ref.read(findIdControllerProvider.notifier).requestSearchId(
       _nameController.text.trim(),
       _phoneController.text.trim(),
@@ -45,7 +42,6 @@ class _FindIdScreenState extends ConsumerState<FindIdScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 🌟 상태 감지 (ListenableBuilder 대체)
     final state = ref.watch(findIdControllerProvider);
 
     return Scaffold(
@@ -62,9 +58,9 @@ class _FindIdScreenState extends ConsumerState<FindIdScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32.0),
-              child: _buildBodyByStep(state), // 🌟 state를 하위 위젯에 전달
+              child: _buildBodyByStep(state),
             ),
-            if (state.isLoading) // 🌟
+            if (state.isLoading)
               Container(color: Colors.black.withOpacity(0.5), child: const Center(child: CircularProgressIndicator(color: AppColors.primary))),
           ],
         ),
@@ -72,13 +68,11 @@ class _FindIdScreenState extends ConsumerState<FindIdScreen> {
     );
   }
 
-  // 🌟 state를 받아서 화면 분기
   Widget _buildBodyByStep(FindIdState state) {
     if (state.currentStep == 1) return _step1Input(state);
     return _step3Result(state);
   }
 
-  // [1단계] 입력 화면
   Widget _step1Input(FindIdState state) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,14 +98,13 @@ class _FindIdScreenState extends ConsumerState<FindIdScreen> {
         PrimaryButton(
           text: "아이디 찾기",
           onPressed: _handleSearchId,
-          isLoading: state.isLoading, // 🌟
+          isLoading: state.isLoading,
         ),
         const SizedBox(height: 24),
       ],
     );
   }
 
-  // [3단계] 결과 화면
   Widget _step3Result(FindIdState state) {
     return Column(
       children: [
@@ -124,11 +117,11 @@ class _FindIdScreenState extends ConsumerState<FindIdScreen> {
           ),
         ),
         const SizedBox(height: 40),
-        Text("${state.userName}님의 아이디는", style: _ptStyle(size: 24, weight: FontWeight.w500, color: AppColors.textMain)), // 🌟
+        Text("${state.userName}님의 아이디는", style: _ptStyle(size: 24, weight: FontWeight.w500, color: AppColors.textMain)),
         const SizedBox(height: 4),
         RichText(text: TextSpan(style: _ptStyle(size: 24, weight: FontWeight.w500, color: AppColors.textMain),
             children: [
-              TextSpan(text: state.foundId, style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.primary)), // 🌟
+              TextSpan(text: state.foundId, style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.primary)),
               const TextSpan(text: " 입니다."),
             ])),
         const Spacer(flex: 3),

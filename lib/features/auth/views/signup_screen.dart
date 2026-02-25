@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // 🌟 Riverpod 추가
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../controllers/signup_controller.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/router/app_router.dart'; // 🌟 라우터 추가
+import '../../../core/router/app_router.dart'; //
 import '../../../shared/widgets/custom_text_field.dart';
 import '../../../shared/widgets/primary_button.dart';
 
-// 🌟 StatefulWidget ➡️ ConsumerStatefulWidget 으로 변경
 class SignUpScreen extends ConsumerStatefulWidget {
   const SignUpScreen({super.key});
 
@@ -16,7 +15,6 @@ class SignUpScreen extends ConsumerStatefulWidget {
 }
 
 class _SignUpScreenState extends ConsumerState<SignUpScreen> {
-  // 컨트롤러 인스턴스를 직접 만들지 않고 Riverpod으로 주입받습니다.
 
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -34,7 +32,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     }
   }
 
-  // 🌟 함수 호출 시 ref.read(프로바이더.notifier) 사용
   Future<void> _handleCheckEmail() async {
     final error = await ref.read(signupControllerProvider.notifier).checkEmailDuplicate(_emailController.text);
     if (error != null) _showSnackBar(error);
@@ -65,7 +62,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
     if (mounted) {
       if (errorMessage == null) {
-        // 🌟 긴 MaterialPageRoute 대신 방금 만든 AppRouter 활용!
         Navigator.pushNamed(
           context,
           AppRouter.verification,
@@ -96,8 +92,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 🌟 상태(로딩, 중복확인 여부)를 화면 전체에서 구독!
-    // 값이 바뀌면 자동으로 이 화면만 리빌드됩니다. (ListenableBuilder 불필요)
     final signupState = ref.watch(signupControllerProvider);
 
     return Scaffold(
@@ -128,9 +122,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     icon: Icons.person_outline,
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    onChanged: (_) => ref.read(signupControllerProvider.notifier).resetEmailCheck(), // 🌟
+                    onChanged: (_) => ref.read(signupControllerProvider.notifier).resetEmailCheck(),
                     suffixButton: ElevatedButton(
-                      onPressed: signupState.isEmailVerified ? null : _handleCheckEmail, // 🌟
+                      onPressed: signupState.isEmailVerified ? null : _handleCheckEmail,
                       style: ElevatedButton.styleFrom(
                           backgroundColor: signupState.isEmailVerified ? Colors.grey : AppColors.primary,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
@@ -165,9 +159,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     label: '닉네임',
                     hint: '닉네임을 입력해주세요 (2~20자 이내)',
                     controller: _nicknameController,
-                    onChanged: (_) => ref.read(signupControllerProvider.notifier).resetNicknameCheck(), // 🌟
+                    onChanged: (_) => ref.read(signupControllerProvider.notifier).resetNicknameCheck(),
                     suffixButton: ElevatedButton(
-                      onPressed: signupState.isNicknameVerified ? null : _handleCheckNickname, // 🌟
+                      onPressed: signupState.isNicknameVerified ? null : _handleCheckNickname,
                       style: ElevatedButton.styleFrom(
                           backgroundColor: signupState.isNicknameVerified ? Colors.grey : AppColors.primary,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
@@ -188,7 +182,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 ],
               ),
             ),
-            if (signupState.isLoading) // 🌟
+            if (signupState.isLoading)
               Container(
                 color: Colors.black.withOpacity(0.5),
                 child: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
@@ -202,7 +196,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           child: PrimaryButton(
             text: '이메일로 본인 인증하기',
             onPressed: _handleSendVerification,
-            isLoading: signupState.isLoading, // 🌟
+            isLoading: signupState.isLoading,
           ),
         ),
       ),

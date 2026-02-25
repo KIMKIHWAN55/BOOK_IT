@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:bookit_app/features/auth/views/login_screen.dart';
-import '../controllers/profile_controller.dart'; // Controller 추가
+import '../controllers/profile_controller.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -11,9 +11,9 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  bool _isLoading = false; // 중복 클릭 방지용
+  bool _isLoading = false;
 
-  // 1. 비밀번호 변경 (재설정 이메일 발송 방식)
+  // 비밀번호 변경
   Future<void> _changePassword() async {
     if (_isLoading) return;
     setState(() => _isLoading = true);
@@ -36,7 +36,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  // 2. 로그아웃
+  // 로그아웃
   Future<void> _logout() async {
     if (_isLoading) return;
     setState(() => _isLoading = true);
@@ -60,11 +60,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  // 3. 회원 탈퇴
+  // 회원 탈퇴
   Future<void> _deleteAccount() async {
     if (_isLoading) return;
 
-    // 확인 다이얼로그
     bool? confirm = await showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -101,13 +100,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         }
       } catch (e) {
         final errorMsg = e.toString();
-        // 로그인한 지 오래된 경우 재인증 필요
         if (errorMsg.contains('requires-recent-login')) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('보안을 위해 다시 로그인한 후 탈퇴해주세요.')),
             );
-            _logout(); // 로그아웃 시켜서 다시 로그인하게 유도
+            _logout();
           }
         } else {
           if (mounted) {
@@ -150,14 +148,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             children: [
               const SizedBox(height: 20),
 
-              // --- 앱 설정 섹션 ---
               _buildSectionHeader("앱 설정"),
               _buildSettingsItem(title: "잠금 설정", onTap: () {}),
               _buildSettingsItem(title: "알림 설정", onTap: () {}),
 
               const SizedBox(height: 20),
 
-              // --- 계정 설정 섹션 ---
               _buildSectionHeader("계정 설정"),
               _buildSettingsItem(title: "비밀번호 변경", onTap: _changePassword),
               _buildSettingsItem(title: "로그 아웃", onTap: _logout),
@@ -165,7 +161,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           ),
 
-          // 로딩 스피너 (처리 중일 때 화면 터치 막기)
           if (_isLoading)
             Container(
               color: Colors.white.withOpacity(0.5),
@@ -178,7 +173,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  // 섹션 헤더 위젯 (회색 배경)
   Widget _buildSectionHeader(String title) {
     return Container(
       width: double.infinity,
@@ -198,7 +192,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  // 설정 항목 위젯 (흰색 배경)
   Widget _buildSettingsItem({required String title, required VoidCallback onTap, bool isLast = false}) {
     return GestureDetector(
       onTap: onTap,

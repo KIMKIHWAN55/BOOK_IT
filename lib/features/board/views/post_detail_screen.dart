@@ -42,7 +42,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     super.dispose();
   }
 
-  // 좋아요 처리 (Optimistic Update 적용)
+  // 좋아요 처리 (UI에서 즉각처리)
   Future<void> _handleLike() async {
     final controller = ref.read(boardControllerProvider);
 
@@ -54,7 +54,6 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     try {
       await controller.toggleLike(widget.post);
     } catch (e) {
-      // 실패 시 롤백
       setState(() {
         _isLiked = !_isLiked;
         _likeCount += _isLiked ? 1 : -1;
@@ -72,7 +71,6 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
       _commentController.clear();
       FocusScope.of(context).unfocus();
 
-      // 스크롤 아래로 이동
       Future.delayed(const Duration(milliseconds: 300), () {
         if (_scrollController.hasClients) {
           _scrollController.animateTo(
@@ -87,7 +85,6 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     }
   }
 
-  // 책 상세 페이지 이동
   Future<void> _navigateToBookDetail() async {
     if (widget.post.bookId == null) return;
 
@@ -111,7 +108,6 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 댓글 스트림 구독
     final commentsAsync = ref.watch(commentsProvider(widget.post.id));
 
     return Scaffold(
@@ -131,7 +127,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. 작성자 정보
+                  // 작성자 정보
                   Row(
                     children: [
                       const CircleAvatar(
@@ -153,12 +149,12 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // 2. 게시글 본문
+                  //게시글 본문
                   Text(widget.post.content, style: const TextStyle(fontSize: 16, height: 1.5, color: Color(0xFF222222))),
 
                   const SizedBox(height: 24),
 
-                  // 3. 책 정보 카드 (존재할 경우에만 표시)
+                  // 책 정보 카드
                   if (widget.post.bookId != null)
                     GestureDetector(
                       onTap: _navigateToBookDetail,
@@ -210,7 +206,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
 
                   const SizedBox(height: 30),
 
-                  // 4. 좋아요 버튼
+                  // 좋아요 버튼
                   Row(
                     children: [
                       GestureDetector(
@@ -229,7 +225,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                   const Divider(thickness: 1, color: Color(0xFFF1F1F5)),
                   const SizedBox(height: 20),
 
-                  // 5. 댓글 목록
+                  // 댓글 목록
                   const Text("댓글", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 16),
 
@@ -260,14 +256,13 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
             ),
           ),
 
-          // 6. 하단 댓글 입력창
+          // 하단 댓글 입력창
           _buildBottomInput(),
         ],
       ),
     );
   }
 
-  // 헬퍼: 댓글 아이템 위젯
   Widget _buildCommentItem(Map<String, dynamic> data) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -294,7 +289,6 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     );
   }
 
-// 헬퍼: 하단 입력창 위젯
   Widget _buildBottomInput() {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
@@ -317,15 +311,12 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: const Color(0xFFE5E5E5)),
               ),
-              // 🌟 [최종 해결책] Theme 위젯으로 감싸서 글로벌 테마(빨간색)를 완벽히 차단!
               child: Theme(
                 data: Theme.of(context).copyWith(
-                  // 메인 컬러를 검정/회색으로 덮어쓰기
                   primaryColor: Colors.black,
                   colorScheme: Theme.of(context).colorScheme.copyWith(
                     primary: Colors.black,
                   ),
-                  // 글자 드래그 시 배경색 & 복사 물방울 커서 색상까지 전부 무채색으로 강제 고정
                   textSelectionTheme: const TextSelectionThemeData(
                     cursorColor: Colors.black,
                     selectionColor: Color(0xFFEEEEEE),
@@ -359,7 +350,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
               padding: const EdgeInsets.all(10),
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
-                color: Color(0xFFD45858), // 종이비행기 버튼은 빨간색 유지
+                color: Color(0xFFD45858),
               ),
               child: const Icon(Icons.send, color: Colors.white, size: 20),
             ),

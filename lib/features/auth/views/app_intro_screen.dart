@@ -24,7 +24,6 @@ class _AppIntroScreenState extends State<AppIntroScreen> {
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // 1. 슬라이드 내용 (PageView)
           PageView(
             controller: _pageController,
             onPageChanged: (index) => setState(() => _currentPage = index),
@@ -35,7 +34,6 @@ class _AppIntroScreenState extends State<AppIntroScreen> {
             ],
           ),
 
-          // 2. 하단 컨트롤 영역
           Positioned(
             bottom: 60,
             left: 0,
@@ -100,7 +98,7 @@ class _AppIntroScreenState extends State<AppIntroScreen> {
     );
   }
 
-  // --- 소개 페이지 1 ---
+  // 소개페이지
   Widget _buildPage1() {
     return _buildSlideLayout(
       title: "이제 혼자서만 책을 보지 마세요",
@@ -119,7 +117,7 @@ class _AppIntroScreenState extends State<AppIntroScreen> {
     );
   }
 
-// --- 소개 페이지 2 (피그마 상세 수치 반영) ---
+// 소개 페이지 2
   Widget _buildPage2() {
     return _buildSlideLayout(
       title: "독서 후의 감정을\n다른사람과 공유해 보세요",
@@ -156,7 +154,7 @@ class _AppIntroScreenState extends State<AppIntroScreen> {
     );
   }
 
-  // --- 소개 페이지 3 (이미지 경로 전달하도록 수정됨) ---
+  // 소개 페이지 3
   Widget _buildPage3() {
     return _buildSlideLayout(
       title: "나의 독서 레벨을 올려 보세요",
@@ -194,8 +192,7 @@ class _AppIntroScreenState extends State<AppIntroScreen> {
     );
   }
 
-  // 공통 슬라이드 레이아웃 빌더
-  // 공통 슬라이드 레이아웃 빌더 (폰트 스타일 수정)
+  // 공통 슬라이드 레이아웃
   Widget _buildSlideLayout({required String title, required String description, required Widget content}) {
     return Column(
       children: [
@@ -203,7 +200,7 @@ class _AppIntroScreenState extends State<AppIntroScreen> {
         content,
         const SizedBox(height: 40),
 
-        // --- 제목 스타일 ---
+        // 제목 스타일
         Text(
           title,
           textAlign: TextAlign.center,
@@ -219,7 +216,7 @@ class _AppIntroScreenState extends State<AppIntroScreen> {
 
         const SizedBox(height: 20),
 
-        // --- 설명글 스타일 ---
+        // 설명글 스타일
         Text(
           description,
           textAlign: TextAlign.center,
@@ -236,7 +233,6 @@ class _AppIntroScreenState extends State<AppIntroScreen> {
     );
   }
 
-  // 🔸 단 하나의 일관된 _buildBoogiGroup 함수 (중복 제거됨)
   Widget _buildBoogiGroup({
     required Color blobColor,
     required Color innerColor,

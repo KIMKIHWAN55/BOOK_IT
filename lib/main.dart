@@ -4,10 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
-
-// 🌟 [추가 1] 날짜 포맷 초기화를 위한 import
 import 'package:intl/date_symbol_data_local.dart';
-
 import 'firebase_options.dart';
 import 'core/router/app_router.dart';
 import 'core/constants/app_colors.dart';
@@ -18,15 +15,12 @@ import 'features/auth/views/login_screen.dart';
 import 'features/home/views/main_screen.dart';
 
 Future<void> main() async {
-  // Flutter 엔진 초기화 보장
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Firebase 초기화
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // 🌟 [추가 2] intl 한국어(ko_KR) 지역 설정 초기화
   await initializeDateFormatting('ko_KR', null);
 
   // [수정] 개발(테스트) 중에는 App Check가 에뮬레이터에서 작동하지 않으므로 잠시 꺼둠
@@ -38,12 +32,11 @@ Future<void> main() async {
   );
   */
 
-  // 온보딩(인트로) 확인
+  // 인트로 확인
   final prefs = await SharedPreferences.getInstance();
   final bool onboardingSeen = prefs.getBool('onboarding_seen') ?? false;
 
   runApp(
-    // Riverpod 상태 관리의 최상위 스코프
     ProviderScope(
       child: BookitApp(onboardingSeen: onboardingSeen),
     ),
@@ -57,7 +50,7 @@ class BookitApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    //  Firebase 로그인 상태 실시간 감시 (인증 반응형 라우팅)
+    // 로그인 상태 실시간 감시 (인증 반응형 라우팅)
     final authState = ref.watch(authStateProvider);
 
     return MaterialApp(
@@ -77,26 +70,23 @@ class BookitApp extends ConsumerWidget {
           ),
         ),
       ),
-      //  상태에 따른 자동 화면 분기 (초기 화면 설정)
       home: _getHomeWidget(authState),
 
-      //  AppRouter 연결
       onGenerateRoute: AppRouter.generateRoute,
     );
   }
 
   // 로그인 상태 및 온보딩 여부에 따라 화면을 결정하는 헬퍼 함수
   Widget _getHomeWidget(AsyncValue<User?> authState) {
-    // 1. 앱을 처음 켰다면 무조건 인트로 화면
+    // 앱을 처음 켰다면 무조건 인트로 화면
     if (!onboardingSeen) {
       return const AppIntroScreen();
     }
 
-    // 2. 인트로를 본 적이 있다면 로그인 상태 확인
+    // 인트로를 본 적이 있다면 로그인 상태 확인
     return authState.when(
       data: (user) {
-        // user 객체가 존재하면(로그인 상태) MainScreen, 아니면 LoginScreen
-        // 💡 이 로직 덕분에 로그아웃(signOut) 시 자동으로 LoginScreen으로 튕깁니다!
+        // user 객체가 존재하면 MainScreen, 아니면 LoginScreen
         if (user != null) {
           return const MainScreen();
         } else {

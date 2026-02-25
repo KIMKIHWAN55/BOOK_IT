@@ -10,7 +10,7 @@ import '../../../shared/widgets/custom_bottom_nav_bar.dart';
 class MainNavNotifier extends Notifier<int> {
   @override
   int build() {
-    return 0; // 초기값 (홈 탭)
+    return 0;
   }
 
   void changeIndex(int index) {
@@ -30,10 +30,10 @@ class MainScreen extends ConsumerWidget {
     final currentIndex = ref.watch(mainNavProvider);
 
     final List<Widget> screens = const [
-      HomeScreen(),        // 0번: 홈
-      IntroChatScreen(),   // 1번: 채팅
-      LibraryScreen(),     // 2번: 서재
-      MyPageScreen(),      // 3번: 마이페이지
+      HomeScreen(),        // 홈
+      IntroChatScreen(),   // 채팅
+      LibraryScreen(),     // 서재
+      MyPageScreen(),      // 마이페이지
     ];
 
     return PopScope(
@@ -49,8 +49,6 @@ class MainScreen extends ConsumerWidget {
           children: screens,
         ),
 
-        // 🌟 플로팅 버튼(floatingActionButton) 관련 코드 완전히 삭제!
-        // 가운데 튀어나오는 UI를 없애고 일반 하단 바만 남깁니다.
         bottomNavigationBar: const CustomBottomNavBar(),
       ),
     );

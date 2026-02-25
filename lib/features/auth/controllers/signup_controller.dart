@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/auth_service.dart';
 
-// 🌟 1. 회원가입 화면에서 사용할 모든 상태를 하나의 클래스로 묶음
 class SignupState {
   final bool isLoading;
   final bool isEmailVerified;
@@ -23,16 +22,14 @@ class SignupState {
   }
 }
 
-// 🌟 2. Provider 생성
 final signupControllerProvider = NotifierProvider<SignupController, SignupState>(() {
   return SignupController();
 });
 
-// 🌟 3. Notifier 상속
 class SignupController extends Notifier<SignupState> {
 
   @override
-  SignupState build() => SignupState(); // 초기 상태 반환
+  SignupState build() => SignupState();
 
   // 텍스트 변경 시 인증 초기화
   void resetEmailCheck() => state = state.copyWith(isEmailVerified: false);
@@ -42,11 +39,11 @@ class SignupController extends Notifier<SignupState> {
     if (email.isEmpty) return "이메일을 입력해주세요.";
     state = state.copyWith(isLoading: true);
     try {
-      final authService = ref.read(authServiceProvider); // 🌟 주입
+      final authService = ref.read(authServiceProvider);
       bool isDup = await authService.isEmailDuplicate(email.trim());
       if (isDup) return "이미 사용 중인 이메일입니다.";
 
-      state = state.copyWith(isEmailVerified: true); // 성공 처리
+      state = state.copyWith(isEmailVerified: true);
       return null;
     } finally {
       state = state.copyWith(isLoading: false);

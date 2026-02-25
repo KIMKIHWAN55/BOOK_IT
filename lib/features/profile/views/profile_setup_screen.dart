@@ -4,9 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../auth/views/signup_complete_screen.dart';
-import '../../auth/services/auth_service.dart'; // authStateProvider 사용을 위해 추가
+import '../../auth/services/auth_service.dart';
 import '../controllers/profile_controller.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore 직접 조회를 위해 추가
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ProfileSetupScreen extends ConsumerStatefulWidget {
   const ProfileSetupScreen({super.key});
@@ -21,18 +21,16 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   final TextEditingController _bioController = TextEditingController();
 
   bool _isLoading = false;
-  bool _isDataLoading = true; // 🌟 가입 정보를 불러오는 중인지 확인
+  bool _isDataLoading = true;
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
-    // 🌟 화면이 열리자마자 기존 가입 정보를 불러옵니다.
     _loadInitialUserData();
   }
 
-  // 🌟 가입 시 입력했던 이름과 닉네임을 Firestore에서 가져오는 로직
   Future<void> _loadInitialUserData() async {
     final user = ref.read(authStateProvider).value;
     if (user != null) {
@@ -128,18 +126,18 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
 
             const SizedBox(height: 40),
 
-            // 1. 프로필 사진 (메인 포커스)
+            //  프로필 사진
             _buildImagePickerSection(),
 
             const SizedBox(height: 50),
 
-            // 2. 가입 정보 확인 (수정 가능하게 둠)
+            //가입 정보 확인
             _buildInputField(label: "이름", controller: _nameController, hintText: "이름", isReadOnly: true), // 이름은 웬만하면 고정
             const SizedBox(height: 24),
             _buildInputField(label: "닉네임", controller: _nicknameController, hintText: "닉네임을 입력해주세요"),
             const SizedBox(height: 24),
 
-            // 3. 소개글 입력 (핵심 추가 항목)
+            //소개글 입력
             _buildInputField(label: "소개글", controller: _bioController, hintText: "나를 한 줄로 소개해 주세요", maxLines: 3),
 
             const SizedBox(height: 60),
@@ -153,7 +151,6 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     );
   }
 
-  // 🌟 사진 선택 섹션 분리
   Widget _buildImagePickerSection() {
     return GestureDetector(
       onTap: _pickImage,
@@ -192,7 +189,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     required TextEditingController controller,
     required String hintText,
     int maxLines = 1,
-    bool isReadOnly = false, // 🌟 이름 등은 읽기 전용 옵션 추가
+    bool isReadOnly = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

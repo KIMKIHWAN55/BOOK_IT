@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
-import '../controllers/chat_controller.dart'; // 🌟 아까 만든 컨트롤러 임포트
+import '../controllers/chat_controller.dart';
 import '../../board/controllers/board_controller.dart';
 import '../../book/views/book_detail_screen.dart';
 
-// 🌟 State 대신 ConsumerState를 사용하여 Riverpod 상태 감지
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
 
@@ -25,20 +24,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     super.dispose();
   }
 
-  // 🌟 전송 버튼 누를 때 로직 변경 (Controller 호출)
   void _handleSubmitted(String text) {
     if (text.trim().isEmpty) return;
 
-    // 1. 키보드 내리기
     FocusScope.of(context).unfocus();
 
-    // 2. 입력창 비우기
     _textController.clear();
 
-    // 3. 컨트롤러의 sendMessage 호출 (AI에게 질문 전송!)
     ref.read(chatControllerProvider.notifier).sendMessage(text);
 
-    // 4. 스크롤 아래로 부드럽게 내리기
     _scrollToBottom();
   }
 
@@ -46,7 +40,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     Future.delayed(const Duration(milliseconds: 300), () {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent + 100, // 조금 더 넉넉하게 스크롤
+          _scrollController.position.maxScrollExtent + 100,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
@@ -56,12 +50,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 🌟 1. ChatController의 상태를 실시간으로 감시!
     final chatState = ref.watch(chatControllerProvider);
     final messages = chatState.messages;
     final isLoading = chatState.isLoading;
 
-    // AI가 답변을 마쳤을 때 스크롤 한 번 더 튕겨주기
     ref.listen(chatControllerProvider, (prev, next) {
       if (prev?.isLoading == true && next.isLoading == false) {
         _scrollToBottom();
@@ -94,7 +86,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
           ),
 
-          // 🌟 로딩 중일 때 부기가 타이핑 치는 듯한 인디케이터 표시
+          // 로딩 중일 때 부기가 타이핑 치는 듯한 인디케이터 표시
           if (isLoading)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
@@ -128,7 +120,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-// 말풍선 및 책 보러가기 버튼 UI
+// 말풍선 및 책 보러가기 버튼
   Widget _buildChatBubble(ChatMessage message) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
@@ -165,15 +157,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           ),
                           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5, offset: const Offset(0, 2))],
                         ),
-                        // 🌟 [핵심 변경] 단순 Text 대신 Column으로 감싸서 버튼을 추가할 수 있게 변경
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // 1. 기존 AI 텍스트
+                            // 기존 AI 텍스트
                             Text(message.text, style: TextStyle(color: message.isMe ? Colors.white : Colors.black, fontSize: 15, height: 1.4)),
 
-                            // 2. 책 ID가 존재한다면 '책 보러가기' 버튼 띄우기
+                            // 책 ID가 존재한다면 '책 보러가기' 버튼 띄우기
                             if (message.bookId != null) ...[
                               const SizedBox(height: 12),
                               SizedBox(
@@ -181,7 +172,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                 child: ElevatedButton.icon(
                                   onPressed: () async {
                                     try {
-                                      // 🌟 질문자님이 만들어두신 boardControllerProvider 사용!
                                       final book = await ref.read(boardControllerProvider).getBookDetail(message.bookId!);
 
                                       if (book != null && context.mounted) {
@@ -201,7 +191,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                   icon: const Icon(Icons.auto_stories, size: 18),
                                   label: const Text("책 보러가기", style: TextStyle(fontWeight: FontWeight.bold)),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFFD45858), // 예쁜 빨간색 버튼
+                                    backgroundColor: const Color(0xFFD45858),
                                     foregroundColor: Colors.white,
                                     elevation: 0,
                                     padding: const EdgeInsets.symmetric(vertical: 10),
@@ -227,7 +217,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  // 하단 입력창 (로딩 중일 땐 입력 막기 추가)
+  // 하단 입력창
   Widget _buildMessageInputArea(bool isLoading) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -238,7 +228,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             Expanded(
               child: TextField(
                 controller: _textController,
-                enabled: !isLoading, // 🌟 GPT가 생각하는 동안엔 타자 못 치게 막기
+                enabled: !isLoading, // gpt답변중에는 타자못치게하기
                 decoration: InputDecoration(
                   hintText: isLoading ? '부기가 책을 고르는 중이에요...' : '메시지를 입력하세요...',
                   hintStyle: const TextStyle(color: Colors.grey),

@@ -56,13 +56,13 @@ import '../../features/board/views/write_post_screen.dart';
 import '../../features/board/views/write_review_screen.dart';
 
 // -----------------------------------------------------------------------------
-// 🌟 8. Chat (AI 채팅) 화면 [추가됨]
+//  8. Chat (AI 채팅) 화면
 // -----------------------------------------------------------------------------
 import '../../features/chat/views/chat_screen.dart';
 
 class AppRouter {
   // ===========================================================================
-  // 1. 라우트 이름(경로) 상수화 (오타 방지용)
+  // 1. 라우트 이름(경로) 상수화 (오타 방지)
   // ===========================================================================
   // Auth
   static const String intro = '/';
@@ -103,7 +103,7 @@ class AppRouter {
   static const String writePost = '/write_post';
   static const String writeReview = '/write_review';
 
-  // 🌟 Chat [추가됨]
+  //  Chat
   static const String chat = '/chat';
 
   // ===========================================================================
@@ -210,7 +210,7 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => PostDetailScreen(post: post));
 
     // -----------------------------------------------------
-    // 🌟 [AI 채팅 화면 관련 추가]
+    //  AI 채팅 화면 관련
     // -----------------------------------------------------
       case chat:
         return MaterialPageRoute(builder: (_) => const ChatScreen());

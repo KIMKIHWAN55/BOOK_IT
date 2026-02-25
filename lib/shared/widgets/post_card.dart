@@ -15,7 +15,6 @@ class PostCard extends ConsumerWidget {
 
   const PostCard({super.key, required this.post});
 
-  // 🌟 작성 및 수정 시간을 계산해서 예쁜 문자열로 바꿔주는 함수
   String _getTimeString(PostModel post) {
     final targetTime = post.updatedAt ?? post.createdAt;
     final isEdited = post.updatedAt != null;
@@ -59,7 +58,7 @@ class PostCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. 헤더 (작성자 + 더보기 메뉴)
+          // 헤더 (작성자 + 더보기 메뉴)
           Row(
             children: [
               const CircleAvatar(
@@ -77,7 +76,7 @@ class PostCard extends ConsumerWidget {
                 ),
               ),
 
-// 🌟 3. [수정됨] 내 글이거나 '관리자'일 때 메뉴 버튼 띄우기
+              // 내 글이거나 관리자일 때 메뉴
               if (isMyPost || isAdmin)
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert, color: Color(0xFF767676)),
@@ -91,13 +90,13 @@ class PostCard extends ConsumerWidget {
                     }
                   },
                   itemBuilder: (BuildContext context) => [
-                    // 🌟 4. [수정됨] '수정하기'는 글 작성자 본인에게만 보임
+                    // 수정하기는 글 작성자 본인에게만 보임
                     if (isMyPost)
                       const PopupMenuItem(
                         value: 'edit',
                         child: Text('수정하기', style: TextStyle(fontFamily: 'Pretendard', fontSize: 14)),
                       ),
-                    // '삭제하기'는 작성자 본인과 관리자 모두에게 보임
+                    // 삭제하기는 작성자 본인과 관리자 모두에게 보임
                     const PopupMenuItem(
                       value: 'delete',
                       child: Text('삭제하기', style: TextStyle(fontFamily: 'Pretendard', fontSize: 14, color: Colors.red)),
@@ -108,12 +107,12 @@ class PostCard extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
 
-          // 2. 내용
+          // 내용
           const Text("🌟 추천합니다", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           Text(post.content, style: const TextStyle(fontSize: 16, height: 1.4, color: Color(0xFF222222))),
 
-          // 3. 태그
+          // 태그
           if (post.tags.isNotEmpty) ...[
             const SizedBox(height: 12),
             Wrap(
@@ -123,7 +122,7 @@ class PostCard extends ConsumerWidget {
           ],
           const SizedBox(height: 20),
 
-          // 4. 책 카드 (클릭 시 이동)
+          // 책 카드
           if (post.bookId != null)
             GestureDetector(
               onTap: () async {
@@ -141,7 +140,7 @@ class PostCard extends ConsumerWidget {
 
           const SizedBox(height: 20),
 
-          // 5. 하단 버튼 (좋아요, 댓글)
+          // 하단 버튼 (좋아요, 댓글)
           Row(
             children: [
               // 좋아요
@@ -231,7 +230,7 @@ class PostCard extends ConsumerWidget {
     );
   }
 
-  // 🔹 책 정보 위젯
+  // 책 정보 위젯
   Widget _buildBookInfoCard(PostModel post) {
     return Container(
       height: 110,
@@ -273,7 +272,6 @@ class PostCard extends ConsumerWidget {
     );
   }
 
-  // 🌟 [수정됨] 기존에 길었던 코드를 지우고, 새로 만든 분리된 위젯을 호출하도록 변경
   void _showCommentSheet(BuildContext context, WidgetRef ref, PostModel post) {
     showModalBottomSheet(
       context: context,
@@ -284,9 +282,7 @@ class PostCard extends ConsumerWidget {
   }
 }
 
-// ======================================================================
-// 🌟 [새로 추가됨] 대댓글과 삭제 기능이 포함된 완벽한 댓글 바텀시트 위젯
-// ======================================================================
+// 댓글 바텀시트 위젯
 class CommentBottomSheet extends ConsumerStatefulWidget {
   final PostModel post;
   const CommentBottomSheet({super.key, required this.post});
@@ -346,11 +342,11 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
 
                   final allDocs = snapshot.data!.docs;
 
-                  // 🌟 부모 댓글과 대댓글 분리 및 정렬 로직
+                  //  부모 댓글과 대댓글 분리 및 정렬 로직
                   final parentComments = allDocs.where((doc) => (doc.data() as Map<String, dynamic>)['parentId'] == null).toList();
                   final childComments = allDocs.where((doc) => (doc.data() as Map<String, dynamic>)['parentId'] != null).toList();
 
-                  // 화면에 그릴 순서대로 리스트 재조립 (부모 -> 자식1 -> 자식2 -> 부모2...)
+                  // 화면에 그릴 순서대로 리스트 재조립
                   List<QueryDocumentSnapshot> displayList = [];
                   for (var parent in parentComments) {
                     displayList.add(parent);
@@ -365,13 +361,11 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
                       final isChild = cData['parentId'] != null;
                       final isDeleted = cData['isDeleted'] == true;
                       final isMyComment = currentUserId == cData['uid'];
-                      // 🌟 3. [추가] 삭제 권한이 있는 사람 = 본인 또는 관리자
                       final hasDeletePermission = isMyComment || isAdmin;
 
                       final createdAt = (cData['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
 
                       return Container(
-                        // 🌟 대댓글이면 왼쪽 여백을 주어 들여쓰기 효과
                         padding: EdgeInsets.only(left: isChild ? 40 : 0, top: 12, bottom: 12),
                         decoration: BoxDecoration(
                           border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
@@ -393,7 +387,7 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
                                       const SizedBox(width: 8),
                                       Text(_getTimeString(createdAt), style: const TextStyle(fontSize: 12, color: Colors.grey)),
                                       const Spacer(),
-                                      // 🌟 내 댓글이고 삭제되지 않은 상태일 때만 '삭제' 버튼 표시
+                                      // 내 댓글이고 삭제되지 않은 상태일 때만 삭제 버튼 표시
                                       if (hasDeletePermission && !isDeleted)
                                         GestureDetector(
                                           onTap: () async {
@@ -414,7 +408,7 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
                                     ),
                                   ),
 
-                                  // 🌟 부모 댓글이고, 삭제되지 않았을 때만 '답글 달기' 버튼 표시
+                                  //  답글 달기 버튼 표시
                                   if (!isChild && !isDeleted)
                                     Padding(
                                       padding: const EdgeInsets.only(top: 8),
@@ -484,7 +478,7 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
                         await ref.read(boardControllerProvider).addComment(
                           widget.post.id,
                           _commentController.text.trim(),
-                          parentId: _replyingToCommentId, // 🌟 대댓글이면 ID 전달
+                          parentId: _replyingToCommentId,
                         );
                         _commentController.clear();
                         setState(() {

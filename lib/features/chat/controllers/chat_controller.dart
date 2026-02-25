@@ -1,13 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart'; // 🌟 파이어베이스 함수 패키지
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// 🌟 [1] 채팅 메시지 데이터 모델 (bookId 추가)
 class ChatMessage {
   final String text;
   final bool isMe;
   final DateTime timestamp;
-  final String? bookId; // 🌟 추천받은 책의 ID (책 보러가기 버튼용)
+  final String? bookId;
 
   ChatMessage({
     required this.text,
@@ -17,7 +16,6 @@ class ChatMessage {
   });
 }
 
-// 🌟 [2] 상태 클래스
 class ChatState {
   final List<ChatMessage> messages;
   final bool isLoading;
@@ -32,10 +30,7 @@ class ChatState {
   }
 }
 
-// 🌟 [3] 컨트롤러: 파이어베이스 서버(Cloud Functions) 호출
 class ChatController extends Notifier<ChatState> {
-  // 🚨 더 이상 플러터 앱에 OpenAI API 키를 적지 않습니다! (보안 100% 완벽)
-
   @override
   ChatState build() {
     return ChatState(
@@ -49,7 +44,7 @@ class ChatController extends Notifier<ChatState> {
     );
   }
 
-  // ✉️ 유저가 메시지를 보냈을 때 실행
+  // 유저가 메시지를 보냈을 때 실행
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty) return;
 
@@ -59,10 +54,8 @@ class ChatController extends Notifier<ChatState> {
     try {
       final bookListText = await _fetchBooksFromFirestore();
 
-      // 서버에서 AI 답변 받아오기
       String aiResponse = await _askToChatGPT(text, bookListText);
 
-      // 🌟 [핵심] AI 대답에서 [BOOK_ID:...] 부분만 쏙 빼내서 해독하기
       String? recommendedBookId;
       final RegExp regex = RegExp(r'\[BOOK_ID:(.*?)\]');
       final match = regex.firstMatch(aiResponse);
@@ -91,7 +84,6 @@ class ChatController extends Notifier<ChatState> {
     }
   }
 
-  // 📖 Firestore에서 책 데이터를 가져올 때 문서 ID도 같이 가져오기
   Future<String> _fetchBooksFromFirestore() async {
     final snapshot = await FirebaseFirestore.instance.collection('books').limit(50).get();
 
@@ -100,7 +92,7 @@ class ChatController extends Notifier<ChatState> {
     StringBuffer buffer = StringBuffer();
     for (var doc in snapshot.docs) {
       final data = doc.data();
-      buffer.writeln("- ID: ${doc.id}"); // 🌟 AI가 책을 특정할 수 있도록 문서 ID 전달
+      buffer.writeln("- ID: ${doc.id}"); //
       buffer.writeln("  제목: ${data['title']}");
       buffer.writeln("  작가: ${data['author']}");
       buffer.writeln("  카테고리: ${data['category']}");
@@ -110,10 +102,10 @@ class ChatController extends Notifier<ChatState> {
     return buffer.toString();
   }
 
-  // 🤖 파이어베이스 서버(Cloud Functions)와 통신하는 함수
+  // 파이어베이스 서버와 통신하는 함수
   Future<String> _askToChatGPT(String userText, String bookList) async {
     try {
-      // 🌟 HTTP 통신 대신, 우리가 방금 배포한 파이어베이스 함수를 직접 호출!
+      // 파이어베이스 함수를 직접 호출
       final result = await FirebaseFunctions.instance
           .httpsCallable('askToChatGPT')
           .call({
@@ -129,7 +121,6 @@ class ChatController extends Notifier<ChatState> {
   }
 }
 
-// 🌟 [4] Provider 생성
 final chatControllerProvider = NotifierProvider<ChatController, ChatState>(() {
   return ChatController();
 });

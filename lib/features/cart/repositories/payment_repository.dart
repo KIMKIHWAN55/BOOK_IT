@@ -16,10 +16,9 @@ class PaymentRepository {
     final batch = _firestore.batch();
 
     for (var item in items) {
-      // id가 없으면 에러가 나도록 설계해야 하지만, 방어 코드로 임시 id 생성
       final bookId = item['id'] ?? DateTime.now().millisecondsSinceEpoch.toString();
 
-      // 1. 🌟 내 서재(purchased_books)에 '추가' 명령
+      // 내 서재에 추가
       final purchasedRef = _firestore
           .collection('users')
           .doc(user.uid)
@@ -33,10 +32,10 @@ class PaymentRepository {
         'imageUrl': item['imageUrl'],
         'price': item['price'],
         'purchasedAt': FieldValue.serverTimestamp(),
-        'currentPage': 0, // 내 서재 독서 기록용 (초기값 0)
+        'currentPage': 0,
       });
 
-      // 2. 🌟 장바구니(cart)에서 '삭제' 명령 (결제 완료된 상품 비우기)
+      //  장바구니 삭제
       final cartRef = _firestore
           .collection('users')
           .doc(user.uid)
@@ -46,7 +45,7 @@ class PaymentRepository {
       batch.delete(cartRef);
     }
 
-    // 트랜잭션/배치 일괄 커밋 (추가와 삭제가 한 번에 묶여서 실행됨)
+    // 트랜잭션/배치 (추가와 삭제가 한 번에 묶여서 실행됨)
     await batch.commit();
   }
 }

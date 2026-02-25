@@ -39,7 +39,7 @@ class CategoryScreen extends StatelessWidget {
                 _CategoryItem("로맨스", "assets/images/로맨스.png"),
                 _CategoryItem("무협", "assets/images/무협.png"),
                 _CategoryItem("추리", "assets/images/추리.png"),
-                _CategoryItem("공포/미스터리", "assets/images/공포.png"), // '공포.png' 연결
+                _CategoryItem("공포/미스터리", "assets/images/공포.png"),
                 _CategoryItem("SF", "assets/images/sf.png"),
                 _CategoryItem("판타지", "assets/images/판타지.png"),
               ],
@@ -49,7 +49,7 @@ class CategoryScreen extends StatelessWidget {
               context: context,
               title: "자기계발",
               items: [
-                _CategoryItem("금융/투자", "assets/images/금융 투자.png"), // 띄어쓰기 주의
+                _CategoryItem("금융/투자", "assets/images/금융 투자.png"),
                 _CategoryItem("여행", "assets/images/여행.png"),
                 _CategoryItem("인간관계", "assets/images/인간관계.png"),
                 _CategoryItem("건강", "assets/images/건강.png"),
@@ -62,7 +62,7 @@ class CategoryScreen extends StatelessWidget {
               context: context,
               title: "인문/문학",
               items: [
-                _CategoryItem("에세이/시", ""), // 해당 이미지 없음 (빈 문자열 유지)
+                _CategoryItem("에세이/시", ""),
                 _CategoryItem("철학", "assets/images/철학.png"),
                 _CategoryItem("심리", "assets/images/심리.png"),
                 _CategoryItem("동화", "assets/images/동화.png"),
@@ -76,7 +76,7 @@ class CategoryScreen extends StatelessWidget {
               items: [
                 _CategoryItem("한국사", "assets/images/한국사.png"),
                 _CategoryItem("세계사", "assets/images/세계사.png"),
-                _CategoryItem("종교", ""), // 해당 이미지 없음
+                _CategoryItem("종교", ""),
                 _CategoryItem("정치", "assets/images/정치.png"),
                 _CategoryItem("사회", "assets/images/사회.png"),
                 _CategoryItem("경제", "assets/images/경제.png"),
@@ -90,7 +90,7 @@ class CategoryScreen extends StatelessWidget {
                 _CategoryItem("요리", "assets/images/요리.png"),
                 _CategoryItem("육아", "assets/images/육아.png"),
                 _CategoryItem("스포츠", "assets/images/스포츠.png"),
-                _CategoryItem("취미", "assets/images/낚시.png"), // '낚시.png'를 취미 대표 이미지로 사용
+                _CategoryItem("취미", "assets/images/낚시.png"),
               ],
             ),
             const SizedBox(height: 40),
@@ -145,21 +145,19 @@ class CategoryScreen extends StatelessWidget {
       },
       child: Column(
         children: [
-          // 이미지 영역
           Container(
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: const Color(0xFFF1F1F5), // 배경색 (이미지 투명 배경일 때 대비)
-              borderRadius: BorderRadius.circular(15), // 둥근 모서리
+              color: const Color(0xFFF1F1F5),
+              borderRadius: BorderRadius.circular(15),
               image: item.imagePath.isNotEmpty
                   ? DecorationImage(
                 image: AssetImage(item.imagePath),
-                fit: BoxFit.cover, // 이미지를 꽉 채움 (필요시 contain으로 변경)
+                fit: BoxFit.cover,
               )
                   : null,
             ),
-            // 이미지가 없을 경우 기본 아이콘 표시
             child: item.imagePath.isEmpty
                 ? const Icon(Icons.book, color: Colors.grey, size: 24)
                 : null,

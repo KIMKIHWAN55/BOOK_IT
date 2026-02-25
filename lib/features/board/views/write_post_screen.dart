@@ -3,11 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../book/models/book_model.dart';
 import '../controllers/board_controller.dart';
 import '../../../shared/widgets/custom_network_image.dart';
-// 🌟 PostModel 임포트 추가 (수정할 때 데이터를 넘겨받기 위함)
 import '../models/post_model.dart';
 
 class WritePostScreen extends ConsumerStatefulWidget {
-  // 🌟 [추가됨] 수정 모드일 때 전달받을 기존 게시글 데이터
   final PostModel? editingPost;
 
   const WritePostScreen({super.key, this.editingPost});
@@ -25,12 +23,10 @@ class _WritePostScreenState extends ConsumerState<WritePostScreen> {
   void initState() {
     super.initState();
 
-    // 🌟 1. 글 내용 미리 채워 넣기 (수정 모드면 기존 글, 아니면 빈칸)
     _contentController = TextEditingController(
         text: widget.editingPost?.content ?? ''
     );
 
-    // 🌟 2. 기존에 추천했던 책 미리 세팅하기
     if (widget.editingPost != null && widget.editingPost!.bookId != null) {
       // 기존 글에 책이 있었다면 화면에 보여주기 위해 임시 BookModel 생성
       _selectedBook = BookModel(
@@ -41,14 +37,13 @@ class _WritePostScreenState extends ConsumerState<WritePostScreen> {
         rating: widget.editingPost!.bookRating.toString(),
         reviewCount: widget.editingPost!.bookReviewCount.toString(),
 
-        // 🌟 에러 방지용 필수 파라미터 및 기본값 할당
         rank: 0,
         tags: [],
         description: '',
         category: '',
       );
     }
-  } // 🌟 누락되었던 initState 닫는 괄호 추가!
+  }
 
   @override
   void dispose() {
@@ -56,7 +51,6 @@ class _WritePostScreenState extends ConsumerState<WritePostScreen> {
     super.dispose();
   }
 
-  // 💾 게시글 저장(또는 수정) 요청 (Controller 호출)
   Future<void> _handleSavePost() async {
     if (_contentController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('내용을 입력해주세요.')));
@@ -72,7 +66,7 @@ class _WritePostScreenState extends ConsumerState<WritePostScreen> {
 
     try {
       if (widget.editingPost != null) {
-        // 🌟 [수정 모드] updatePost 호출
+        // [수정]
         await ref.read(boardControllerProvider).updatePost(
           postId: widget.editingPost!.id,
           content: _contentController.text,
@@ -82,7 +76,7 @@ class _WritePostScreenState extends ConsumerState<WritePostScreen> {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('게시글이 수정되었습니다.')));
         }
       } else {
-        // 🌟 [작성 모드] writePost 호출
+        // [작성]
         await ref.read(boardControllerProvider).writePost(
           content: _contentController.text,
           book: _selectedBook!,
@@ -92,7 +86,7 @@ class _WritePostScreenState extends ConsumerState<WritePostScreen> {
         }
       }
 
-      if (mounted) Navigator.pop(context); // 성공 시 화면 닫기
+      if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('에러: $e')));
     } finally {
@@ -100,7 +94,6 @@ class _WritePostScreenState extends ConsumerState<WritePostScreen> {
     }
   }
 
-  // 📖 책 선택 바텀 시트 (Riverpod Provider 사용)
   void _showBookSelector() {
     showModalBottomSheet(
       context: context,
@@ -174,7 +167,6 @@ class _WritePostScreenState extends ConsumerState<WritePostScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 🌟 화면 제목과 버튼 텍스트를 모드에 따라 다르게 설정
     final screenTitle = widget.editingPost != null ? "글 수정하기" : "글쓰기";
     final buttonTitle = widget.editingPost != null ? "수정 하기" : "작성 하기";
 
@@ -197,7 +189,7 @@ class _WritePostScreenState extends ConsumerState<WritePostScreen> {
             child: Column(
               children: [
                 const SizedBox(height: 38),
-                // 1. 내용 입력
+                //  내용 입력
                 Container(
                   width: double.infinity,
                   height: 435,
@@ -216,7 +208,7 @@ class _WritePostScreenState extends ConsumerState<WritePostScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // 2. 책 추천 박스
+                //  책 추천 박스
                 GestureDetector(
                   onTap: _showBookSelector,
                   child: Container(
@@ -281,7 +273,7 @@ class _WritePostScreenState extends ConsumerState<WritePostScreen> {
             ),
           ),
 
-          // 3. 작성하기/수정하기 버튼
+          // 작성하기/수정하기 버튼
           Positioned(
             left: 16, right: 16, bottom: 34,
             child: GestureDetector(

@@ -19,32 +19,32 @@ class PaymentScreen extends ConsumerStatefulWidget {
 }
 
 class _PaymentScreenState extends ConsumerState<PaymentScreen> {
-  bool _isLoading = false; // 결제 중 중복 클릭 방지용 상태
+  bool _isLoading = false;
 
   // 결제 처리 핸들러
   void _handlePayment() async {
-    if (_isLoading) return; // 이미 결제 진행 중이면 무시
+    if (_isLoading) return;
 
     setState(() => _isLoading = true);
 
     try {
-      // 1. Controller를 통해 결제(Firestore Batch) 요청
+      //  Controller를 통해 결제 요청
       await ref.read(paymentControllerProvider).processPayment(widget.items);
 
-      // 2. 결제 완료 팝업
+      //  결제 완료
       if (mounted) {
         final formatCurrency = NumberFormat("#,###", "ko_KR");
         showDialog(
           context: context,
-          barrierDismissible: false, // 팝업 바깥을 눌러서 닫히는 것 방지
+          barrierDismissible: false,
           builder: (context) => AlertDialog(
             title: const Text("결제 완료"),
             content: Text("총 ${formatCurrency.format(widget.totalPrice)}원이 결제되었습니다.\n내 서재에 책이 추가되었습니다."),
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.pop(context); // 다이얼로그 닫기
-                  Navigator.popUntil(context, (route) => route.isFirst); // 홈으로 한 번에 이동
+                  Navigator.pop(context);
+                  Navigator.popUntil(context, (route) => route.isFirst);
                 },
                 child: const Text("확인"),
               ),
@@ -144,7 +144,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(16.0),
         child: ElevatedButton(
-          // 로딩 중일 때는 null을 주어 버튼을 비활성화 시킴 (회색 처리됨)
+          // 로딩 중일 때는 null을 주어 버튼을 비활성화 시킴
           onPressed: _isLoading ? null : _handlePayment,
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFFD45858),

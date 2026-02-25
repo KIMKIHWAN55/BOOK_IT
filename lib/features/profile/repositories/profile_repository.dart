@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../book/models/book_model.dart';
 import '../models/user_model.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 
@@ -12,11 +13,6 @@ class ProfileRepository {
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
 
-  // ==========================================
-  // 1. 유저 정보 관리 (실시간 및 초기값)
-  // ==========================================
-
-  // 유저 정보 스트림 (실시간 반영)
   Stream<UserModel?> getUserProfileStream() {
     final user = _auth.currentUser;
     if (user == null) return Stream.value(null);
@@ -27,7 +23,7 @@ class ProfileRepository {
     });
   }
 
-  // 초기 텍스트 필드 채우기용 원본 데이터
+  // 초기 텍스트 필드 원본 데이터
   Future<Map<String, dynamic>?> getRawProfileData() async {
     final user = _auth.currentUser;
     if (user == null) return null;
@@ -36,11 +32,9 @@ class ProfileRepository {
     return doc.data();
   }
 
-  // ==========================================
-  // 2. 좋아요 및 라이브러리 기능 (사용자님 핵심 기능)
-  // ==========================================
+  // 좋아요 및 라이브러리 기능
 
-  // 🌟 [복구] 좋아요한 책 목록 가져오기 (마이페이지용)
+  // 좋아요한 책 목록 가져오기
   Stream<QuerySnapshot> getLikedBooksStream() {
     final user = _auth.currentUser;
     if (user == null) return const Stream.empty();
@@ -60,11 +54,7 @@ class ProfileRepository {
     return null;
   }
 
-  // ==========================================
-  // 3. 프로필 업데이트 및 설정
-  // ==========================================
-
-  // Storage에 이미지 업로드
+  // 프로필 업데이트 및 설정
   Future<String?> uploadProfileImage(File imageFile) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception("로그인이 필요합니다.");
@@ -74,11 +64,23 @@ class ProfileRepository {
         .child('user_profile')
         .child('${user.uid}.jpg');
 
-    await storageRef.putFile(imageFile);
+    // kisWeb 플랫폼에 따라 업로드 방식을 다르게 처리
+    if (kIsWeb) {
+      //  웹 환경: 파일을 바이트로 변환하여 putData로 업로드
+      final bytes = await imageFile.readAsBytes();
+      await storageRef.putData(
+        bytes,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
+    } else {
+      // 모바일 환경: 메모리(RAM) 절약을 위해 putFile로 업로드
+      await storageRef.putFile(imageFile);
+    }
+
     return await storageRef.getDownloadURL();
   }
 
-  // 프로필 정보 업데이트 (최초 설정 및 수정 공용)
+  // 프로필 정보 업데이트
   Future<void> updateProfile({
     required String name,
     required String nickname,
@@ -100,7 +102,6 @@ class ProfileRepository {
       data['profileImage'] = profileImageUrl; // 필드명 일관성 유지
     }
 
-    // merge: true를 사용하여 가입 시 입력된 이메일 등을 보존합니다.
     await _firestore.collection('users').doc(user.uid).set(data, SetOptions(merge: true));
   }
 
@@ -115,9 +116,7 @@ class ProfileRepository {
     return false;
   }
 
-  // ==========================================
-  // 4. 계정 및 인증 관리
-  // ==========================================
+  // 계정 및 인증 관리
 
   Future<void> logout() async {
     await _auth.signOut();

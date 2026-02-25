@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // 🌟 Riverpod 추가
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:email_otp/email_otp.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -7,12 +7,10 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// 🌟 [Riverpod] 서비스 Provider 생성
 final authServiceProvider = Provider<AuthService>((ref) {
   return AuthService();
 });
 
-// 🌟 [Riverpod] 인증 상태 감지 Provider
 final authStateProvider = StreamProvider<User?>((ref) {
   return FirebaseAuth.instance.authStateChanges();
 });
@@ -22,11 +20,7 @@ class AuthService {
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // ==========================================
-  // 1. 로그인 관련 로직
-  // ==========================================
-
-  // 🌟 [수정됨] 이메일/비밀번호 로그인 (친절한 에러 메시지 번역 추가)
+  //  로그인 관련 로직
   Future<UserCredential> signInWithEmail(String email, String password) async {
     try {
       return await _auth.signInWithEmailAndPassword(
@@ -61,7 +55,7 @@ class AuthService {
     }
   }
 
-// 구글 로그인 + Firestore 자동 저장 로직 추가
+// 구글 로그인 + Firestore 자동 저장 로직
   Future<UserCredential?> signInWithGoogle() async {
     UserCredential? credential;
     if (kIsWeb) {
@@ -83,7 +77,7 @@ class AuthService {
       credential = await _auth.signInWithCredential(authCredential);
     }
 
-    // 🌟 [추가됨] 로그인 성공 시 Firestore에 유저 정보가 없으면 저장
+    // 로그인 성공 시 Firestore에 유저 정보가 없으면 저장
     if (credential != null && credential.user != null) {
       await _syncGoogleUserToFirestore(credential.user!);
     }
@@ -91,12 +85,12 @@ class AuthService {
     return credential;
   }
 
-  // 🌟 [추가됨] 구글 유저 전용 DB 동기화 함수
+  // 구글 유저 전용 DB 동기화 함수
   Future<void> _syncGoogleUserToFirestore(User user) async {
     final userDoc = await _firestore.collection('users').doc(user.uid).get();
 
     if (!userDoc.exists) {
-      // 1. 처음 로그인한 유저라면 문서를 생성합니다.
+      // 처음 로그인한 유저라면 문서를 생성
       await _firestore.collection('users').doc(user.uid).set({
         'email': user.email,
         'role': 'user', // 기본 권한
@@ -107,23 +101,19 @@ class AuthService {
         'createdAt': FieldValue.serverTimestamp(),
       });
     } else {
-      // 2. 이미 있는 유저라면 로그인 시간이나 프로필 사진 정도만 업데이트 (선택 사항)
+      // 이미 있는 유저라면 로그인 시간이나 프로필 사진 정도만 업데이트
       await _firestore.collection('users').doc(user.uid).update({
         'photoUrl': user.photoURL,
       });
     }
   }
 
-  // 로그아웃 (편의상 추가)
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     await _auth.signOut();
   }
 
-  // ==========================================
   // 2. 회원가입 및 본인 인증 관련 로직
-  // ==========================================
-
   // 이메일 인증 코드 발송
   Future<void> sendEmailVerificationCode(String email) async {
     final url = Uri.parse('https://sendverificationcode-o4apuahgma-uc.a.run.app');
@@ -180,11 +170,7 @@ class AuthService {
     }
   }
 
-  // ==========================================
-  // 3. 사용자 정보 DB 관리 로직
-  // ==========================================
-
-  // Firestore에 유저 기본 정보 저장
+  // 사용자 정보 DB 관리 로직
   Future<void> saveUserToFirestore({
     required String uid,
     required String email,
@@ -202,33 +188,29 @@ class AuthService {
     }, SetOptions(merge: true));
   }
 
-  // ==========================================
-  // 4. 아이디 찾기 (보안 적용)
-  // ==========================================
+  // 아이디 찾기 (보안 적용)
   Future<String?> findUserId({required String name, required String phone}) async {
     final snapshot = await _firestore.collection('users')
         .where('name', isEqualTo: name)
         .where('phone', isEqualTo: phone)
-        .limit(1) // 🌟 [보안] Firestore 규칙(limit <= 1) 통과를 위해 필수
+        .limit(1)
         .get();
 
     if (snapshot.docs.isNotEmpty) return snapshot.docs.first.get('email');
     return null;
   }
 
-  // ==========================================
-  // 5. 비밀번호 찾기 (보안 적용)
-  // ==========================================
+  //  비밀번호 찾기
   Future<bool> checkUserExists({required String name, required String email}) async {
     final snapshot = await _firestore.collection('users')
         .where('name', isEqualTo: name)
         .where('email', isEqualTo: email)
-        .limit(1) // 🌟 [보안]
+        .limit(1) //
         .get();
     return snapshot.docs.isNotEmpty;
   }
 
-  // 🌟 [수정됨] 비밀번호 재설정 이메일 발송 (에러 처리 추가)
+  // 비밀번호 재설정 이메일 발송
   Future<void> sendPasswordResetEmail(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email);
@@ -244,13 +226,11 @@ class AuthService {
     }
   }
 
-  // ==========================================
-  // 6. 회원가입 중복 검사 (보안 적용)
-  // ==========================================
+  //  회원가입 중복 검사
   Future<bool> isEmailDuplicate(String email) async {
     final snap = await _firestore.collection('users')
         .where('email', isEqualTo: email)
-        .limit(1) // 🌟 [보안]
+        .limit(1)
         .get();
     return snap.docs.isNotEmpty;
   }
@@ -258,7 +238,7 @@ class AuthService {
   Future<bool> isNicknameDuplicate(String nickname) async {
     final snap = await _firestore.collection('users')
         .where('nickname', isEqualTo: nickname)
-        .limit(1) // 🌟 [보안]
+        .limit(1)
         .get();
     return snap.docs.isNotEmpty;
   }

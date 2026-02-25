@@ -13,16 +13,15 @@ class LikedBooksScreen extends ConsumerStatefulWidget {
 }
 
 class _LikedBooksScreenState extends ConsumerState<LikedBooksScreen> {
-  bool _isLoading = false; // 중복 클릭(따닥) 방지용 상태
+  bool _isLoading = false; // 중복 클릭방지
 
-  // 책 클릭 시 상세 정보 불러오기 & 이동
+  // 책 클릭 시 상세 정보 불러오기
   void _handleBookTap(String bookId) async {
-    if (_isLoading) return; // 이미 로딩 중이면 터치 무시
+    if (_isLoading) return;
 
     setState(() => _isLoading = true);
 
     try {
-      // Controller를 통해 전체 책 정보 조회
       final book = await ref.read(profileActionControllerProvider).getBookDetail(bookId);
 
       if (mounted) {
@@ -54,7 +53,6 @@ class _LikedBooksScreenState extends ConsumerState<LikedBooksScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 좋아요 스트림 구독
     final likedBooksAsync = ref.watch(likedBooksProvider);
 
     return Scaffold(
@@ -107,7 +105,6 @@ class _LikedBooksScreenState extends ConsumerState<LikedBooksScreen> {
                                 ),
                               ],
                             ),
-                            // 🌟 NetworkImage 대신 CustomNetworkImage 사용 (ClipRRect로 둥근 모서리 적용)
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8),
                               child: CustomNetworkImage(
@@ -136,7 +133,6 @@ class _LikedBooksScreenState extends ConsumerState<LikedBooksScreen> {
             error: (error, stack) => Center(child: Text("오류가 발생했습니다: $error")),
           ),
 
-          // 상세 정보 불러오는 중일 때 화면 전체를 덮는 로딩 인디케이터
           if (_isLoading)
             Container(
               color: Colors.white.withOpacity(0.5),

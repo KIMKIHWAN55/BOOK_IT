@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:bookit_app/features/auth/views/login_screen.dart'; // 로그인 화면 import
+import 'package:bookit_app/features/auth/views/login_screen.dart';
 
 class SignupCompleteScreen extends StatelessWidget {
   const SignupCompleteScreen({super.key});
@@ -20,7 +20,6 @@ class SignupCompleteScreen extends StatelessWidget {
             const SizedBox(height: 40),
             ElevatedButton(
               onPressed: () {
-                // 로그인 화면으로 이동 (모든 스택 제거)
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (context) => const LoginScreen()),

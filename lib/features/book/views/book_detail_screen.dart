@@ -54,12 +54,9 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
   Widget build(BuildContext context) {
     final currencyFormat = NumberFormat("#,###", "ko_KR");
     final book = widget.book;
-
-    // Riverpod 상태 구독
     final isLikedAsync = ref.watch(likeStatusProvider(book.id));
     final isPurchasedAsync = ref.watch(purchaseStatusProvider(book.id));
     final reviewsAsync = ref.watch(bookReviewsProvider(book.id));
-
     final bool isLiked = isLikedAsync.value ?? false;
     final bool isPurchased = isPurchasedAsync.value ?? false;
 
@@ -67,9 +64,7 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // ---------------------------------------------------------
-          // 1. 배경 레이어
-          // ---------------------------------------------------------
+          //  배경 레이어
           Positioned(
             top: 0,
             left: 0,
@@ -112,16 +107,13 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
             ),
           ),
 
-          // ---------------------------------------------------------
-          // 2. 메인 컨텐츠
-          // ---------------------------------------------------------
+          // 메인
           Positioned.fill(
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 50),
-                  // 상단 네비게이션
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
@@ -152,7 +144,7 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
 
                   const SizedBox(height: 10),
 
-// 책 표지
+                  //책표지
                   Center(
                     child: Container(
                       width: 165,
@@ -165,9 +157,9 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
                               offset: const Offset(0, 2),
                               blurRadius: 2),
                         ],
-                        // 여기서 image 속성은 통째로 지워줍니다!
+
                       ),
-                      // 🌟 대신 child 안으로 CustomNetworkImage를 쏙 넣습니다.
+                      //
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(6),
                         child: CustomNetworkImage(
@@ -260,7 +252,7 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
 
                   const SizedBox(height: 40),
 
-                  // 줄거리 & 태그
+                  // 줄거리/ 태그
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Column(
@@ -320,7 +312,7 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
                   ),
                   const SizedBox(height: 15),
 
-                  // 가로 스크롤 리뷰 리스트 (Riverpod 적용)
+                  // 가로 스크롤 리뷰 리스트
                   SizedBox(
                     height: 150,
                     child: reviewsAsync.when(
@@ -350,9 +342,7 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
             ),
           ),
 
-          // ---------------------------------------------------------
-          // 3. 하단 구매 바
-          // ---------------------------------------------------------
+          //하단 구매 바
           Positioned(
             bottom: 0,
             left: 0,
@@ -527,7 +517,7 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
     );
   }
 
-  // 바텀 시트로 전체 리뷰 보여주기 (Riverpod 적용)
+  // 바텀 시트로 전체 리뷰 보여주기
   void _showAllReviewsBottomSheet() {
     showModalBottomSheet(
       context: context,

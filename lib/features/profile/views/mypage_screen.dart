@@ -15,20 +15,16 @@ import '../../book/models/book_model.dart';
 import '../../book/views/book_detail_screen.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/widgets/custom_network_image.dart';
-
-// 🌟 [추가] 분리해둔 공통 상단 바 위젯 Import
 import '../../../shared/widgets/custom_app_bar.dart';
 
-// 🌟 [추가] 개별 책의 상세 정보를 캐싱하고 불러오기 위한 Provider
 final bookItemDetailProvider = FutureProvider.family<BookModel?, String>((ref, bookId) async {
   return await ref.read(profileActionControllerProvider).getBookDetail(bookId);
 });
 
 
-// 🌟 [수정] 좋아요한 책들의 '실제 데이터'를 조회해 가장 많이 나온 카테고리(장르) 3개를 뽑아주는 Provider
 final topGenresProvider = FutureProvider.autoDispose<List<String>?>((ref) async {
   try {
-    // 1. 좋아요한 책 목록 불러오기
+    // 좋아요한 책 목록 불러오기
     final likedBooksSnapshot = await ref.watch(likedBooksProvider.future);
     final docs = likedBooksSnapshot.docs;
 
@@ -37,10 +33,9 @@ final topGenresProvider = FutureProvider.autoDispose<List<String>?>((ref) async 
     Map<String, int> categoryCounts = {};
     final profileController = ref.watch(profileActionControllerProvider);
 
-    // 2. 각 책의 상세 정보 가져오기
+    // 각 책의 상세 정보 가져오기
     for (var doc in docs) {
       try {
-        // 🌟 기존의 BookModel.fromFirestore(doc) 대신 id만 안전하게 뽑아옵니다. (데이터 파싱 에러 원천 차단)
         final String bookId = doc.id;
         final fullBook = await profileController.getBookDetail(bookId);
 
@@ -53,7 +48,6 @@ final topGenresProvider = FutureProvider.autoDispose<List<String>?>((ref) async 
           }
         }
       } catch (innerError) {
-        // 🌟 특정 책 하나를 불러오다 에러가 나도 앱이 터지지 않고 다음 책으로 넘어갑니다.
         debugPrint("개별 책($doc.id) 정보 로드 실패 (무시됨): $innerError");
         continue;
       }
@@ -68,7 +62,7 @@ final topGenresProvider = FutureProvider.autoDispose<List<String>?>((ref) async 
     return sortedCategories.take(3).toList();
 
   } catch (e) {
-    // 전체 스트림이나 네트워크에 치명적인 에러가 발생했을 때
+    // 전체 스트림이나 네트워크에 에러가 발생했을 때
     throw Exception("장르 분석 실패: $e");
   }
 });
@@ -79,7 +73,6 @@ class MyPageScreen extends ConsumerStatefulWidget {
   ConsumerState<MyPageScreen> createState() => _MyPageScreenState();
 }
 
-// 탭 컨트롤러를 유지해야 하므로 ConsumerStatefulWidget 사용
 class _MyPageScreenState extends ConsumerState<MyPageScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
@@ -109,7 +102,6 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
-    // 🌟 실시간 유저 정보 구독 (Riverpod)
     final userProfileAsync = ref.watch(userProfileProvider);
 
     return userProfileAsync.when(
@@ -131,14 +123,11 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> with SingleTickerPr
     );
   }
 
-  // ============================================================
-  //  1. 관리자(Admin) 레이아웃
-  // ============================================================
+  //  관리자 레이아웃
   Widget _buildAdminLayout(UserModel userModel) {
     return Scaffold(
       backgroundColor: const Color(0xFFF1F1F5),
 
-      // 🌟 [적용 완료] 한 줄로 깔끔해진 관리자 페이지 상단바
       appBar: const CustomAppBar(
         title: "관리자 페이지",
         showSearch: false,
@@ -208,14 +197,11 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> with SingleTickerPr
     );
   }
 
-  // ============================================================
-  //  2. 일반 사용자(User) 레이아웃
-  // ============================================================
+  //  일반 사용자 레이아웃
   Widget _buildUserLayout(UserModel userModel) {
     return Scaffold(
       backgroundColor: const Color(0xFFF1F1F5),
 
-      // 🌟 [적용 완료] 한 줄로 깔끔해진 유저 마이페이지 상단바
       appBar: const CustomAppBar(
         title: "내 정보",
         showSearch: false,
@@ -232,7 +218,6 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> with SingleTickerPr
                     const SizedBox(height: 20),
                     GestureDetector(
                       onTap: () {
-                        // 수정 페이지에서 돌아와도 StreamProvider가 자동으로 최신화해 줌
                         Navigator.push(
                           context,
                           MaterialPageRoute(builder: (context) => const ProfileEditScreen()),
@@ -255,13 +240,12 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> with SingleTickerPr
                     ),
                     const SizedBox(height: 10),
 
-                    // 🌟 수정된 부분: 동적 소개글 및 태그 렌더링
                     _buildInfoCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // 1. 내가 작성한 소개글 (bio)
+                          // 내가 작성한 소개글
                           Text(
                             userModel.bio.isNotEmpty
                                 ? userModel.bio
@@ -272,7 +256,6 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> with SingleTickerPr
                           ),
                           const SizedBox(height: 4),
 
-                          // 🌟 2. 새로 만든 topGenresProvider를 사용해 진짜 장르 불러오기
                           ref.watch(topGenresProvider).when(
                             data: (topTags) {
                               if (topTags == null) {
@@ -296,7 +279,6 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> with SingleTickerPr
                               );
                             },
                             loading: () => const Text("선호 장르 분석 중...", style: TextStyle(fontFamily: 'Pretendard', fontSize: 14, color: Colors.grey)),
-                            // 🌟 에러 메시지(e)를 화면에 직접 출력해서 뭐가 문제인지 바로 알 수 있게 변경!
                             error: (e, _) => Text(
                               "장르 오류: $e",
                               style: const TextStyle(fontFamily: 'Pretendard', fontSize: 12, color: Colors.red),
@@ -334,15 +316,14 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> with SingleTickerPr
         body: TabBarView(
           controller: _tabController,
           children: [
-            _buildLikedBooksList(), // 좋아요한 책 스트림 위젯
-            _buildLikedFeedsList(), // 피드 목록
+            _buildLikedBooksList(),
+            _buildLikedFeedsList(),
           ],
         ),
       ),
     );
   }
 
-  // 🌟 고정 높이(height)를 제거하고 위아래 패딩(vertical)을 추가해 내용에 맞게 유연하게 조절
   Widget _buildInfoCard({required Widget child}) {
     return Container(
       width: double.infinity,
@@ -379,7 +360,6 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> with SingleTickerPr
     );
   }
 
-  // 🌟 [수정] 위젯 분리를 통해 훨씬 짧아진 좋아요한 책 리스트 코드
   Widget _buildLikedBooksList() {
     final likedBooksAsync = ref.watch(likedBooksProvider);
 
@@ -422,7 +402,6 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> with SingleTickerPr
               );
             }
 
-            // Firestore 요약 문서를 넘겨서, 진짜 평점과 데이터를 가져오는 LikedBookListItem 위젯 호출
             var doc = docs[index];
             BookModel listBookModel = BookModel.fromFirestore(doc);
 
@@ -496,24 +475,18 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   bool shouldRebuild(_SliverAppBarDelegate oldDelegate) => false;
 }
 
-// ============================================================
-// 🌟 [추가] 진짜 평점과 리뷰 수를 표시해 줄 분리된 리스트 아이템 위젯
-// ============================================================
 class LikedBookListItem extends ConsumerWidget {
   final BookModel summaryBook;
   const LikedBookListItem({super.key, required this.summaryBook});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 🌟 Provider를 통해 전체 책 데이터를 실시간으로 가져옵니다 (스크롤 시 중복 호출 방지 캐싱)
     final fullBookAsync = ref.watch(bookItemDetailProvider(summaryBook.id));
 
-    // 로딩 중일 때는 요약본(summaryBook)을, 데이터가 성공적으로 오면 전체 데이터(fullBookAsync.value)를 보여줍니다.
     final displayBook = fullBookAsync.value ?? summaryBook;
 
     return GestureDetector(
       onTap: () {
-        // 데이터를 다 불러온 상태라면 로딩 다이얼로그 없이 즉시 상세 페이지로 이동합니다.
         if (fullBookAsync.value != null) {
           Navigator.push(
             context,
@@ -522,7 +495,6 @@ class LikedBookListItem extends ConsumerWidget {
             ),
           );
         } else {
-          // 혹시 아직 불러오는 중이라면 띄워주는 안내 메시지
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("책 상세 정보를 불러오는 중입니다. 잠시만 기다려주세요.")),
           );
@@ -578,7 +550,6 @@ class LikedBookListItem extends ConsumerWidget {
                       maxLines: 1, overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 6),
-                    // 🌟 드디어 실제 평점과 리뷰수가 제대로 연동되어 뜹니다!
                     Row(
                       children: [
                         const Icon(Icons.star, size: 14, color: Color(0xFFFBBC05)),

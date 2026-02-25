@@ -1,4 +1,4 @@
-import 'dart:async'; // 🌟 디바운스(Timer)를 위해 추가
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/widgets/custom_network_image.dart';
@@ -18,7 +18,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchText = "";
 
-  // 🌟 [추가 1] 디바운스를 위한 타이머 변수
   Timer? _debounce;
 
   TextStyle _ptStyle({
@@ -37,12 +36,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   @override
   void dispose() {
-    _debounce?.cancel(); // 🌟 화면이 꺼질 때 타이머도 끄기
+    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
-  // 🌟 [추가 2] 타자 칠 때마다 즉시 검색하지 않고 0.3초 대기하는 함수
+  // 타자 칠 때마다 즉시 검색하지 않고 0.3초 대기하는 함수
   void _onSearchChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
 
@@ -80,7 +79,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ),
               child: TextField(
                 controller: _searchController,
-                onChanged: _onSearchChanged, // 🌟 디바운스 함수 연결
+                onChanged: _onSearchChanged,
                 decoration: InputDecoration(
                   hintText: '찾고 싶은 책, 작가, 장르를 입력해주세요',
                   hintStyle: _ptStyle(
@@ -91,7 +90,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     padding: EdgeInsets.only(left: 12, right: 8),
                     child: Icon(Icons.search, color: Color(0xFF767676), size: 24),
                   ),
-                  // 🌟 [추가 3] 글자가 있을 때만 나타나는 원클릭 지우기 버튼
+                  //  글자가 있을 때만 나타나는 원클릭 지우기 버튼
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
                     icon: const Icon(Icons.cancel, color: Colors.grey, size: 20),
@@ -111,7 +110,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
           const SizedBox(height: 10),
 
-          // --- 2. 검색 결과 목록 ---
+          // 검색결과 목록
           Expanded(
             child: _searchText.isEmpty
                 ? _buildEmptyState()
@@ -133,7 +132,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           final titleLower = book.title.toLowerCase();
           final authorLower = book.author.toLowerCase();
 
-          // 🌟 [추가 4] 책의 태그(장르) 배열도 하나의 문자열로 합쳐서 검색 대상에 포함!
+          //  책의 태그 배열도 하나의 문자열로 합쳐서 검색 대상에 포함
           final tagsLower = book.tags.join(" ").toLowerCase();
           final categoryLower = book.category.toLowerCase();
 
@@ -154,7 +153,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             final book = books[index];
             return GestureDetector(
               onTap: () {
-                // 키보드 내리고 이동
                 FocusScope.of(context).unfocus();
                 Navigator.push(
                   context,

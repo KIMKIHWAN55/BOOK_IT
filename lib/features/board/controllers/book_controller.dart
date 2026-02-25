@@ -12,7 +12,7 @@ class BookController {
   BookRepository get _repository => _ref.read(bookRepositoryProvider);
   User? get _currentUser => FirebaseAuth.instance.currentUser;
 
-  // 🌟 리뷰 제출 로직
+  // 리뷰 제출 로직
   Future<void> submitReview({
     required String bookId,
     required String content,
@@ -20,10 +20,10 @@ class BookController {
   }) async {
     if (_currentUser == null) throw Exception("로그인이 필요합니다.");
 
-    // 1. 유저 정보 (닉네임 등 추가 필요 시 Firestore 조회 로직 추가 가능)
+    // 유저 정보
     final String userName = _currentUser!.displayName ?? '익명';
 
-    // 2. 모델 생성
+    // 모델 생성
     final review = ReviewModel(
       id: '', // ID는 Repo에서 자동 생성됨
       uid: _currentUser!.uid,
@@ -33,7 +33,7 @@ class BookController {
       createdAt: DateTime.now(),
     );
 
-    // 3. Repository 호출
+    // Repository 호출
     await _repository.addReview(bookId: bookId, review: review);
   }
 }

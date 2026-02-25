@@ -24,12 +24,10 @@ class VerificationState {
   }
 }
 
-// 🌟 autoDispose를 빼고 가장 기본적이고 안전한 NotifierProvider 사용
 final verificationControllerProvider = NotifierProvider<VerificationController, VerificationState>(() {
   return VerificationController();
 });
 
-// 🌟 기본 Notifier 상속
 class VerificationController extends Notifier<VerificationState> {
   Timer? _timer;
 
@@ -38,7 +36,7 @@ class VerificationController extends Notifier<VerificationState> {
     return VerificationState();
   }
 
-  // 🌟 수동으로 타이머를 끄는 함수 추가 (화면이 닫힐 때 호출할 예정)
+  // 타이머를 끄는 함수
   void disposeTimer() {
     _timer?.cancel();
     _timer = null;
@@ -46,7 +44,7 @@ class VerificationController extends Notifier<VerificationState> {
 
   void startTimer() {
     disposeTimer(); // 기존 타이머가 있으면 끄기
-    state = state.copyWith(timeLeft: 120); // 다시 들어와도 2분으로 초기화됨!
+    state = state.copyWith(timeLeft: 120); // 다시 들어와도 2분으로 초기화
 
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (state.timeLeft > 0) {

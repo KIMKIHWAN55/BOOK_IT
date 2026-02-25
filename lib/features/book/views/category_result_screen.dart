@@ -7,13 +7,12 @@ import 'book_detail_screen.dart';
 import '../../../shared/widgets/custom_network_image.dart';
 
 class CategoryResultScreen extends ConsumerWidget {
-  final String category; // 선택된 카테고리 이름 (예: "SF")
+  final String category;
 
   const CategoryResultScreen({super.key, required this.category});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 🌟 [핵심] Riverpod 3.2.1: 카테고리 파라미터를 넘겨서 상태 구독
     final booksAsync = ref.watch(categoryBooksProvider(category));
 
     return Scaffold(
@@ -37,7 +36,7 @@ class CategoryResultScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3, // 한 줄에 3개씩
-              childAspectRatio: 0.65, // 책 비율 조정
+              childAspectRatio: 0.65,
               crossAxisSpacing: 16,
               mainAxisSpacing: 24,
             ),
@@ -46,7 +45,6 @@ class CategoryResultScreen extends ConsumerWidget {
               final book = books[index];
               return GestureDetector(
                 onTap: () {
-                  // 책 클릭 시 상세 페이지로 이동
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => BookDetailScreen(book: book)),
@@ -59,7 +57,6 @@ class CategoryResultScreen extends ConsumerWidget {
                       child: Container(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
-                          // 🌟 기존에 있던 image: DecorationImage(...) 부분을 삭제합니다.
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.1),
@@ -68,7 +65,6 @@ class CategoryResultScreen extends ConsumerWidget {
                             )
                           ],
                         ),
-                        // 🌟 Container의 자식(child)으로 CustomNetworkImage를 넣습니다.
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8), // 이미지가 컨테이너의 둥근 모서리를 넘지 않도록 잘라줌
                           child: CustomNetworkImage(

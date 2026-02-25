@@ -21,7 +21,6 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   String? _currentImageUrl;
   bool _isLoading = false;
 
-  // 🌟 [추가] 닉네임 중복 체크용 상태 변수들
   String _originalNickname = '';
   bool _isNicknameChecked = true; // 처음에는 원래 내 닉네임이므로 통과 상태
 
@@ -57,7 +56,6 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     }
   }
 
-  // 🌟 [추가] 닉네임 중복 확인 로직
   Future<void> _checkDuplicate() async {
     final nickname = _nicknameController.text.trim();
     if (nickname.isEmpty) {
@@ -83,7 +81,6 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   }
 
   Future<void> _saveProfile() async {
-    // 🌟 [추가] 닉네임 중복 체크 안 했으면 튕겨내기
     if (!_isNicknameChecked) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('닉네임 중복 확인을 해주세요!')));
       return;
@@ -174,7 +171,6 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
             _buildCustomTextField(label: '이름', controller: _nameController),
             const SizedBox(height: 10),
 
-            // 🌟 닉네임 입력란 (+ 중복 확인 버튼)
             _buildCustomTextField(
               label: '닉네임',
               controller: _nicknameController,
@@ -229,7 +225,6 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     );
   }
 
-  // 🌟 suffix(우측 버튼)와 onChanged(타이핑 감지)를 받을 수 있도록 확장된 UI 위젯
   Widget _buildCustomTextField({
     required String label,
     required TextEditingController controller,

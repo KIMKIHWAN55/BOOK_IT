@@ -29,11 +29,10 @@ class CustomNetworkImage extends StatelessWidget {
     }
 
     if (kIsWeb) {
-      // 🌐 웹 환경 (데스크탑 웹 & 모바일 웹 모두)
       // 프록시 URL 적용
       final targetUrl = 'https://wsrv.nl/?url=${Uri.encodeComponent(secureUrl)}';
 
-      // 웹에서는 브라우저 자체 캐시를 활용하므로 Image.network를 사용하는 것이 훨씬 안정적입니다.
+      // 웹에서는 Image.network사용
       return Image.network(
         targetUrl,
         width: width,
@@ -46,7 +45,6 @@ class CustomNetworkImage extends StatelessWidget {
         errorBuilder: (context, error, stackTrace) => _buildErrorPlaceholder(),
       );
     } else {
-      // 📱 모바일 네이티브 앱 환경 (Android, iOS)
       return CachedNetworkImage(
         imageUrl: secureUrl,
         width: width,

@@ -93,7 +93,7 @@ class AdminController extends AsyncNotifier<void> {
 
     // 삭제 후 별도의 반환값은 없으며, 에러 발생 시 state.hasError로 UI에서 확인 가능
   }
-  // 🌟 주간 추천 도서 업데이트 요청
+  //  주간 추천 도서 업데이트 요청
   Future<void> updateRecommendedBooks(List<String> selectedBookIds) async {
     try {
       await _repository.updateWeeklyRecommend(selectedBookIds);

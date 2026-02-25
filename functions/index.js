@@ -1,18 +1,17 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const axios = require("axios");
-
-// 🌟 2단계에서 저장한 비밀 키를 불러옵니다.
+.
 const openAiKey = defineSecret("OPENAI_API_KEY");
 
 // 'askToChatGPT'라는 이름의 서버 API를 만듭니다.
 exports.askToChatGPT = onCall({ secrets: [openAiKey] }, async (request) => {
   try {
-    // 1. 플러터 앱에서 보낸 데이터(유저 질문, 책 리스트) 받기
+    // 1. 플러터 앱에서 보낸 데이터 받기
     const userText = request.data.userText;
     const bookList = request.data.bookList;
     
-    // 2. 파이어베이스 비밀 금고에서 API 키 꺼내기
+    // 2. 파이어베이스 에서 API 키 꺼내기
     const apiKey = openAiKey.value();
 
 const systemPrompt = `
@@ -27,7 +26,7 @@ const systemPrompt = `
 ${bookList}
 `;
 
-    // 3. 서버에서 안전하게 OpenAI로 요청 보내기
+    // 서버에서 안전하게 OpenAI로 요청 보내기
     const response = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
@@ -46,7 +45,7 @@ ${bookList}
       }
     );
 
-    // 4. 플러터 앱으로 결과값 반환
+    // 플러터 앱으로 결과값 반환
     return { 
       result: response.data.choices[0].message.content 
     };

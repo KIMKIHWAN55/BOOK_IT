@@ -17,7 +17,6 @@ class PostModel {
   final List<String> likedBy;
   final DateTime createdAt;
 
-  // 🌟 [추가됨] 수정된 시간을 담을 필드 (수정 안 한 글도 있으니 nullable(?)로 선언)
   final DateTime? updatedAt;
 
   PostModel({
@@ -36,10 +35,9 @@ class PostModel {
     required this.commentCount,
     required this.likedBy,
     required this.createdAt,
-    this.updatedAt, // 🌟 [추가됨]
+    this.updatedAt,
   });
 
-  // Firestore 데이터를 객체로 변환
   factory PostModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return PostModel(
@@ -53,7 +51,7 @@ class PostModel {
       bookAuthor: data['bookAuthor'],
       bookImageUrl: data['bookImageUrl'],
 
-      // 🌟 글자(String)로 들어오든 숫자(int/double)로 들어오든 안전하게 숫자로 변환
+      // 글자로 들어오든 숫자로 들어오든 안전하게 숫자로 변환
       bookRating: double.tryParse(data['bookRating']?.toString() ?? '0') ?? 0.0,
       bookReviewCount: int.tryParse(data['bookReviewCount']?.toString() ?? '0') ?? 0,
       likeCount: int.tryParse(data['likeCount']?.toString() ?? '0') ?? 0,
@@ -62,7 +60,6 @@ class PostModel {
       likedBy: List<String>.from(data['likedBy'] ?? []),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
 
-      // 🌟 [추가됨] Firestore의 updatedAt을 DateTime으로 변환 (없으면 null 반환)
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
     );
   }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../book/models/book_model.dart';
-import '../controllers/book_controller.dart'; // Controller import
+import '../controllers/book_controller.dart';
 
 class WriteReviewScreen extends ConsumerStatefulWidget {
   final BookModel book;
@@ -22,7 +22,6 @@ class _WriteReviewScreenState extends ConsumerState<WriteReviewScreen> {
     super.dispose();
   }
 
-  // 🌟 리뷰 제출 핸들러 (Controller 사용)
   Future<void> _handleSubmit() async {
     if (_contentController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("내용을 입력해주세요.")));
@@ -33,7 +32,6 @@ class _WriteReviewScreenState extends ConsumerState<WriteReviewScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      // 🌟 Controller에게 요청 위임
       await ref.read(bookControllerProvider).submitReview(
         bookId: widget.book.id,
         content: _contentController.text.trim(),
@@ -41,7 +39,7 @@ class _WriteReviewScreenState extends ConsumerState<WriteReviewScreen> {
       );
 
       if (mounted) {
-        Navigator.pop(context); // 성공 시 뒤로가기
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("리뷰가 등록되었습니다.")));
       }
     } catch (e) {
@@ -68,7 +66,7 @@ class _WriteReviewScreenState extends ConsumerState<WriteReviewScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // 1. 책 제목
+            //  책 제목
             Text(
               widget.book.title,
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -76,7 +74,7 @@ class _WriteReviewScreenState extends ConsumerState<WriteReviewScreen> {
             ),
             const SizedBox(height: 30),
 
-            // 2. 별점 입력 (UI 로직)
+            //  별점 입력
             const Text("이 책은 어떠셨나요?", style: TextStyle(fontSize: 16, color: Colors.grey)),
             const SizedBox(height: 10),
             Row(
@@ -94,7 +92,7 @@ class _WriteReviewScreenState extends ConsumerState<WriteReviewScreen> {
             ),
             const SizedBox(height: 30),
 
-            // 3. 리뷰 내용 입력
+            //  리뷰 내용 입력
             TextField(
               controller: _contentController,
               maxLines: 8,
@@ -112,7 +110,7 @@ class _WriteReviewScreenState extends ConsumerState<WriteReviewScreen> {
             ),
             const SizedBox(height: 40),
 
-            // 4. 등록 버튼
+            //  등록 버튼
             SizedBox(
               width: double.infinity,
               height: 56,

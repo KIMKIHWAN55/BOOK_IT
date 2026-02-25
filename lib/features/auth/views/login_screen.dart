@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../controllers/auth_controller.dart';
-// 🌟 우리가 만든 라우터와 색상 테마 임포트
 import '../../../core/constants/app_colors.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/widgets/custom_text_field.dart';
@@ -27,15 +26,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  // 🌟 이메일 로그인 로직
+  // 이메일 로그인 로직
   Future<void> _handleEmailLogin() async {
-    // 1. 키보드부터 깔끔하게 내리기
     FocusScope.of(context).unfocus();
 
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
-    // 🌟 [핵심 디테일 추가] 빈 칸인 경우 서버로 보내지 않고 앱에서 즉시 차단! (속도 향상 및 비용 절감)
+    // 빈 칸인 경우 서버로 보내지 않고 앱에서 즉시 차단
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('아이디와 비밀번호를 모두 입력해주세요.')),
@@ -43,23 +41,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return;
     }
 
-    // 2. 서버로 로그인 요청
+    // 서버로 로그인 요청
     final errorMessage = await ref.read(authControllerProvider.notifier).login(email, password);
 
-    if (!mounted) return; // 화면이 닫혔으면 중단
+    if (!mounted) return;
 
     if (errorMessage != null) {
-      // 3. 에러 발생 시 한국어 메시지 띄우기 (AuthService에서 변환해둔 그 메시지!)
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(errorMessage)),
       );
     } else {
-      // 4. 성공 시 메인 화면으로 이동
       Navigator.pushNamedAndRemoveUntil(context, AppRouter.main, (route) => false);
     }
   }
 
-  // 🌟 구글 로그인 로직
+  // 구글 로그인 로직
   Future<void> _handleGoogleLogin() async {
     FocusScope.of(context).unfocus();
 
@@ -78,7 +74,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 🌟 로딩 상태 구독
     final isLoading = ref.watch(authControllerProvider).isLoading;
 
     return Scaffold(
@@ -124,7 +119,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   PrimaryButton(
                     text: '로그인',
                     onPressed: _handleEmailLogin,
-                    isLoading: isLoading, // 🌟 버튼 내부의 스피너와 연동
+                    isLoading: isLoading,
                   ),
 
                   const SizedBox(height: 28),
@@ -176,7 +171,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
           ),
 
-          // 🌟 로딩 중일 때 투명한 막을 씌워 화면 터치(연타) 완벽 차단!
+          // 로딩 중일 때 투명한 막을 씌워 화면 터치(연타) 차단
           if (isLoading)
             Container(
               color: Colors.transparent,
@@ -188,8 +183,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  // --- 하위 위젯 헬퍼 함수들 ---
-
+  // 하위 위젯 헬퍼 함수들
   Widget _buildRememberIdCheckbox() {
     return GestureDetector(
       onTap: () => setState(() => _rememberId = !_rememberId),

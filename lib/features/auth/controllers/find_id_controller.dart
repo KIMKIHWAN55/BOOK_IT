@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/auth_service.dart';
 
-// 🌟 1. 상태를 묶어주는 클래스
 class FindIdState {
   final int currentStep;
   final bool isLoading;
@@ -25,12 +24,10 @@ class FindIdState {
   }
 }
 
-// 🌟 2. Provider 생성
 final findIdControllerProvider = NotifierProvider<FindIdController, FindIdState>(() {
   return FindIdController();
 });
 
-// 🌟 3. Notifier 상속
 class FindIdController extends Notifier<FindIdState> {
   @override
   FindIdState build() => FindIdState();
@@ -40,17 +37,17 @@ class FindIdController extends Notifier<FindIdState> {
 
     state = state.copyWith(isLoading: true);
     try {
-      final authService = ref.read(authServiceProvider); // 🌟 주입
+      final authService = ref.read(authServiceProvider);
       final resultId = await authService.findUserId(name: name, phone: phone);
 
       if (resultId != null) {
         state = state.copyWith(
           foundId: resultId,
           userName: name,
-          currentStep: 3, // 결과 화면으로 이동
+          currentStep: 3,
           isLoading: false,
         );
-        return null; // 성공
+        return null;
       } else {
         state = state.copyWith(isLoading: false);
         return "일치하는 정보가 없습니다.";

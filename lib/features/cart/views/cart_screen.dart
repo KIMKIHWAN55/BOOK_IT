@@ -16,7 +16,6 @@ class CartScreen extends ConsumerStatefulWidget {
 }
 
 class _CartScreenState extends ConsumerState<CartScreen> {
-  // 로컬 UI 상태: 선택된 항목 ID와 전체 선택 여부
   final Set<String> _selectedItemIds = {};
   bool _isAllSelected = true;
 
@@ -49,14 +48,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
     final cartAsync = ref.watch(cartListProvider);
 
-    // 🌟 상태 기반 파생 데이터 계산 (setState 불필요)
     List<CartItemModel> loadedItems = [];
     int totalProductPrice = 0;
     int totalPaymentPrice = 0;
 
     cartAsync.whenData((items) {
       loadedItems = items;
-      // 전체 선택이 켜져 있다면 새로 들어온 아이템도 모두 선택 Set에 넣기
       if (_isAllSelected) {
         _selectedItemIds.addAll(items.map((e) => e.id));
       }
@@ -159,15 +156,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   }
                 } else {
                   _selectedItemIds.remove(item.id);
-                  _isAllSelected = false; // 하나라도 해제하면 전체 선택 해제
+                  _isAllSelected = false;
                 }
               });
             },
             activeColor: Colors.redAccent,
           ),
-// 🌟 CustomNetworkImage로 교체! (둥근 테두리를 원하시면 ClipRRect로 감싸셔도 예쁩니다)
           ClipRRect(
-            borderRadius: BorderRadius.circular(6), // 선택 사항: 테두리를 살짝 둥글게
+            borderRadius: BorderRadius.circular(6),
             child: CustomNetworkImage(
               imageUrl: item.imageUrl,
               width: 80,

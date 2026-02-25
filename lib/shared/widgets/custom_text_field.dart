@@ -8,8 +8,8 @@ class CustomTextField extends StatelessWidget {
   final IconData? icon;
   final bool isObscure;
   final TextInputType keyboardType;
-  final Widget? suffixButton; // 🌟 입력창 옆에 붙일 버튼 추가!
-  final ValueChanged<String>? onChanged; // 🌟 텍스트 변경 감지용
+  final Widget? suffixButton;
+  final ValueChanged<String>? onChanged;
 
   const CustomTextField({
     super.key,
@@ -39,7 +39,7 @@ class CustomTextField extends StatelessWidget {
             children: [
               Expanded(
                 child: SizedBox(
-                  height: 52, // 🌟 높이 고정으로 버튼과 규격 맞춤
+                  height: 52,
                   child: TextField(
                     controller: controller,
                     obscureText: isObscure,
@@ -60,7 +60,7 @@ class CustomTextField extends StatelessWidget {
               ),
               if (suffixButton != null) ...[
                 const SizedBox(width: 8),
-                SizedBox(height: 52, child: suffixButton!), // 🌟 버튼 UI
+                SizedBox(height: 52, child: suffixButton!),
               ]
             ],
           ),

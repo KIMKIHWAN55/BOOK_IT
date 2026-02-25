@@ -4,7 +4,6 @@ import 'package:bookit_app/features/book/views/book_detail_screen.dart';
 import 'package:bookit_app/features/home/controllers/home_controller.dart';
 import '../../../shared/widgets/custom_network_image.dart';
 import 'package:flutter/foundation.dart';
-// 🌟 [추가] 업그레이드 된 공통 상단바 Import
 import '../../../shared/widgets/custom_app_bar.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -15,7 +14,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  // 🌟 [수정 2] 추천 도서의 현재 페이지를 기억하는 상태 변수 추가
   int _currentRecommendIndex = 0;
 
   TextStyle _ptStyle({
@@ -42,7 +40,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       backgroundColor: Colors.white,
       extendBodyBehindAppBar: true,
 
-      // 🌟 [적용] 옵션만 켜주면 투명 배경 + 흰색 아이콘 + 장바구니 달린 홈 화면 전용 바가 완성됩니다!
       appBar: const CustomAppBar(
         isTransparent: true,
         showCart: true,
@@ -62,11 +59,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 children: [
                   Text('이번달 베스트 셀러', style: _ptStyle(size: 20, weight: FontWeight.w600)),
 
-                  // 🌟 [수정됨] 이제 더보기 글씨를 누를 수 있습니다!
                   GestureDetector(
                     onTap: () {
-                      // 💡TODO: 나중에 '베스트셀러 전체보기' 전용 화면을 만들면 여기 연결!
-                      // 지금은 임시로 스낵바를 띄우거나, 검색 화면으로 보내도 좋습니다.
+                      // TODO: 나중에 '베스트셀러 전체보기' 전용 화면을 만들면 여기 연결!
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('베스트셀러 전체보기 화면 준비 중입니다.')),
                       );
@@ -110,13 +105,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 : PageView.builder(
               itemCount: books.length,
               controller: PageController(viewportFraction: 0.6),
-              // 🌟 [수정 2] 스와이프할 때마다 번호 상태 업데이트
               onPageChanged: (index) {
                 setState(() {
                   _currentRecommendIndex = index;
                 });
               },
-              // 🌟 [수정 1] 책 표지를 누르면 상세 페이지로 넘어가도록 감싸기
               itemBuilder: (context, index) => GestureDetector(
                 onTap: () {
                   Navigator.push(
@@ -131,7 +124,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          // 🌟 [수정 2] 페이지 번호가 고정되지 않고 실제 스크롤에 맞춰서 움직이게 변경!
           Text(
             '${books.isEmpty ? 0 : _currentRecommendIndex + 1} / ${books.length}',
             style: _ptStyle(size: 16, weight: FontWeight.w600, color: Colors.white),
@@ -141,7 +133,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  // 🌟 [완벽 리팩토링] 9개의 리스트를 3개씩 묶어서 가로 스와이프 가능하게 변경!
   Widget _buildBestSellerList(List<dynamic> books) {
     if (books.isEmpty) {
       return const Padding(
@@ -149,22 +140,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: Center(child: Text("등록된 베스트셀러가 없습니다.")),
       );
     }
-
-    // 1. 데이터를 3개씩 한 묶음(Page)으로 쪼개는 실무 로직 (Chunking)
+    //3개씩 표현하는로 직
     List<List<dynamic>> pages = [];
     for (int i = 0; i < books.length; i += 3) {
       int end = (i + 3 < books.length) ? i + 3 : books.length;
       pages.add(books.sublist(i, end));
     }
 
-    // 2. 가로로 스와이프 가능한 PageView 생성
+    // 로로 스와이프 가능한 PageView 생성
     return SizedBox(
-      height: 390, // 책 3개가 세로로 딱 들어갈 맞춤 높이
+      height: 390,
       child: PageView.builder(
-        controller: PageController(viewportFraction: 1.0), // 한 화면에 한 페이지 꽉 차게
-        itemCount: pages.length, // 총 3페이지 (9개 기준)
+        controller: PageController(viewportFraction: 1.0),
+        itemCount: pages.length,
         itemBuilder: (context, pageIndex) {
-          final pageBooks = pages[pageIndex]; // 이번 페이지에 보여줄 3권의 책
+          final pageBooks = pages[pageIndex];
 
           return Column(
             children: pageBooks.map((book) {
@@ -179,7 +169,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 },
                 child: _buildBestsellerItem(
                   rank: book.rank.toString(),
-                  // 🌟 웹 환경 에러 방지: DB 값이 숫자일 수 있으므로 모두 강제 문자열 변환
                   title: book.title.toString(),
                   author: book.author.toString(),
                   imageUrl: book.imageUrl.toString(),
@@ -195,7 +184,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildPickCard(String imageUrl) {
-    // 프록시 로직은 CustomNetworkImage 안에 있으므로 지워줍니다!
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 10),
@@ -206,7 +194,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(6),
         child: CustomNetworkImage(
-          imageUrl: imageUrl, // 원본 URL을 그대로 넘깁니다.
+          imageUrl: imageUrl,
         ),
       ),
     );
@@ -229,7 +217,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: CustomNetworkImage(
-              imageUrl: imageUrl, // 🌟 이제 앱에서는 원본이, 웹에서는 프록시가 자동으로 들어갑니다.
+              imageUrl: imageUrl,
               width: 73,
               height: 110,
             ),

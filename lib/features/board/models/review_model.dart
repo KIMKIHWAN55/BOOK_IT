@@ -23,7 +23,7 @@ class ReviewModel {
       'userName': userName,
       'content': content,
       'rating': rating,
-      'createdAt': FieldValue.serverTimestamp(), // 서버 시간
+      'createdAt': FieldValue.serverTimestamp(),
     };
   }
 

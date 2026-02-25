@@ -14,7 +14,7 @@ class LibraryScreen extends ConsumerStatefulWidget {
 }
 
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
-  // 🔹 책 위치 좌표 정의 (Shelf 디자인에 맞춤)
+  //  책 위치 좌표 정의)
   final List<Map<String, double>> _bookPositions = [
     {'top': 193, 'left': (390 / 2) - (79 / 2) - 115.5}, // 1번 책
     {'top': 193, 'left': (390 / 2) - (79 / 2) + 0.5},   // 2번 책
@@ -25,11 +25,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   // 🔹 책 클릭 시: 독서 기록 및 리뷰 팝업
   void _showBookOptionDialog(BookModel book, QueryDocumentSnapshot purchaseDoc) {
-    // Map 타입 캐스팅을 명시적으로 처리
     final data = purchaseDoc.data() as Map<String, dynamic>?;
     int currentPage = (data != null && data.containsKey('currentPage')) ? data['currentPage'] : 0;
-
-    // 페이지 입력용 컨트롤러
     final TextEditingController pageController = TextEditingController(text: currentPage.toString());
 
     showDialog(
@@ -57,9 +54,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   final newPage = int.tryParse(pageController.text.trim());
                   if (newPage != null) {
                     try {
-                      // Riverpod Controller를 통해 Firestore 업데이트
                       await ref.read(libraryControllerProvider).updateCurrentPage(book.id, newPage);
-                      if (mounted) Navigator.pop(context); // 성공 시 닫기
+                      if (mounted) Navigator.pop(context);
                     } catch (e) {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -92,7 +88,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Riverpod 3.2.1: 구매 도서 목록 스트림 구독
     final purchasedBooksAsync = ref.watch(purchasedBooksProvider);
 
     return Scaffold(
@@ -107,7 +102,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             decoration: const BoxDecoration(color: Color(0xFFC58152)),
             child: Stack(
               children: [
-                // 1. 배경 & 선반 이미지
+                //  배경 / 선반 이미지
                 Positioned(
                   top: 98, left: 0,
                   child: Container(
@@ -121,14 +116,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 _buildShelfShadow(top: 283, left: -17),
                 _buildShelfShadow(top: 503, left: -17),
 
-                // 2. 상단 바
+                // 상단 바
                 _buildAppBar(context),
 
-                // 3. 서재에 꽂힌 책들 (Riverpod 상태 반영)
+                // 서재에 꽂힌 책들
                 purchasedBooksAsync.when(
                   data: (snapshot) {
                     final docs = snapshot.docs;
-                    if (docs.isEmpty) return const SizedBox(); // 비어있으면 표시 안함
+                    if (docs.isEmpty) return const SizedBox();
 
                     return Stack(
                       children: List.generate(docs.length, (index) {
@@ -136,7 +131,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
                         var data = docs[index].data() as Map<String, dynamic>;
 
-                        // 🌟 BookModel 필수 파라미터(tags, description) 추가 완료!
                         BookModel book = BookModel(
                           id: data['id'] ?? docs[index].id,
                           title: data['title'] ?? '제목 없음',
@@ -146,8 +140,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                           rating: '',
                           reviewCount: '',
                           category: '',
-                          tags: [],          // 👈 추가됨
-                          description: '',   // 👈 추가됨
+                          tags: [],
+                          description: '',
                         );
 
                         return Positioned(
@@ -168,7 +162,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                                   ),
                                 ],
                               ),
-                              // 🌟 CustomNetworkImage 교체 완료 및 double 타입 명시
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(2),
                                 child: CustomNetworkImage(
