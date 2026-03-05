@@ -1,5 +1,4 @@
-import 'dart:io' show File;
-import 'package:flutter/foundation.dart';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -24,6 +23,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   bool _isLoading = false;
   bool _isDataLoading = true;
   XFile? _imageFile;
+  Uint8List? _imageBytes;
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -65,7 +65,11 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
         imageQuality: 70,
       );
       if (pickedFile != null) {
-        setState(() => _imageFile = pickedFile);
+        final bytes = await pickedFile.readAsBytes();
+        setState(() {
+          _imageFile = pickedFile;
+          _imageBytes = bytes;
+        });
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("갤러리를 여는 도중 오류가 발생했습니다.")));
@@ -167,12 +171,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                 decoration: BoxDecoration(
                   color: const Color(0xFFF5F5F5),
                   shape: BoxShape.circle,
-                  image: _imageFile != null
-                      ? DecorationImage(
-                          image: kIsWeb
-                              ? NetworkImage(_imageFile!.path)
-                              : FileImage(File(_imageFile!.path)) as ImageProvider,
-                          fit: BoxFit.cover)
+                  image: _imageBytes != null
+                      ? DecorationImage(image: MemoryImage(_imageBytes!), fit: BoxFit.cover)
                       : null,
                 ),
                 child: _imageFile == null ? const Icon(Icons.person, size: 50, color: Color(0xFFCCCCCC)) : null,

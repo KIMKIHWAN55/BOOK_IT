@@ -3,8 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../book/models/book_model.dart';
 import '../models/user_model.dart';
-import 'package:flutter/foundation.dart';
-import 'dart:io' show File;
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -65,18 +63,12 @@ class ProfileRepository {
         .child('user_profile')
         .child('${user.uid}.jpg');
 
-    // kisWeb 플랫폼에 따라 업로드 방식을 다르게 처리
-    if (kIsWeb) {
-      //  웹 환경: 파일을 바이트로 변환하여 putData로 업로드
-      final bytes = await imageFile.readAsBytes();
-      await storageRef.putData(
-        bytes,
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
-    } else {
-      // 모바일 환경: XFile.path로 File 변환 후 putFile 업로드
-      await storageRef.putFile(File(imageFile.path));
-    }
+    // XFile.readAsBytes()로 통일 — dart:io File 미사용 (웹/모바일 공통)
+    final bytes = await imageFile.readAsBytes();
+    await storageRef.putData(
+      bytes,
+      SettableMetadata(contentType: 'image/jpeg'),
+    );
 
     return await storageRef.getDownloadURL();
   }
