@@ -95,13 +95,20 @@ class BoardRepository {
 
     await batch.commit();
   }
-  //댓글 소프트 삭제
+  // 댓글 소프트 삭제 (commentCount 동기화 포함)
   Future<void> softDeleteComment(String postId, String commentId) async {
-    await _firestore.collection('posts').doc(postId).collection('comments').doc(
-        commentId).update({
+    final postRef = _firestore.collection('posts').doc(postId);
+    final commentRef = postRef.collection('comments').doc(commentId);
+
+    final batch = _firestore.batch();
+    batch.update(commentRef, {
       'content': '삭제된 댓글입니다.',
       'isDeleted': true,
     });
+    batch.update(postRef, {
+      'commentCount': FieldValue.increment(-1),
+    });
+    await batch.commit();
   }
 
   // 댓글 목록 조회(오래된 순)

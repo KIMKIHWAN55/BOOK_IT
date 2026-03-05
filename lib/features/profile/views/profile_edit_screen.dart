@@ -1,4 +1,5 @@
-import 'dart:io';
+import 'dart:io' show File;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -17,7 +18,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   final _nicknameController = TextEditingController();
   final _bioController = TextEditingController();
 
-  File? _imageFile;
+  XFile? _imageFile;
   String? _currentImageUrl;
   bool _isLoading = false;
 
@@ -48,10 +49,13 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   }
 
   Future<void> _pickImage() async {
-    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
+    final pickedFile = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70,
+    );
     if (pickedFile != null) {
       setState(() {
-        _imageFile = File(pickedFile.path);
+        _imageFile = pickedFile;
       });
     }
   }
@@ -142,7 +146,11 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                       color: const Color(0xFFF4F4F4),
                       shape: BoxShape.circle,
                       image: _imageFile != null
-                          ? DecorationImage(image: FileImage(_imageFile!), fit: BoxFit.cover)
+                          ? DecorationImage(
+                              image: kIsWeb
+                                  ? NetworkImage(_imageFile!.path)
+                                  : FileImage(File(_imageFile!.path)) as ImageProvider,
+                              fit: BoxFit.cover)
                           : (_currentImageUrl != null && _currentImageUrl!.isNotEmpty
                           ? DecorationImage(image: NetworkImage(_currentImageUrl!), fit: BoxFit.cover)
                           : null),

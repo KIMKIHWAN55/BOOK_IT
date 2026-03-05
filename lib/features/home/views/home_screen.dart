@@ -99,27 +99,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           Text('이번주 추천 Pick!', style: _ptStyle(size: 22, weight: FontWeight.w500, color: Colors.white)),
           const SizedBox(height: 30),
           SizedBox(
-            height: 200,
+            height: 210,
             child: books.isEmpty
                 ? const Center(child: Text("추천 도서가 없습니다.", style: TextStyle(color: Colors.white)))
-                : PageView.builder(
-              itemCount: books.length,
-              controller: PageController(viewportFraction: 0.6),
-              onPageChanged: (index) {
-                setState(() {
-                  _currentRecommendIndex = index;
-                });
-              },
-              itemBuilder: (context, index) => GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => BookDetailScreen(book: books[index]),
-                    ),
-                  );
+                : ScrollConfiguration(
+              behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+              child: PageView.builder(
+                itemCount: books.length,
+                controller: PageController(viewportFraction: 0.6),
+                onPageChanged: (index) {
+                  setState(() {
+                    _currentRecommendIndex = index;
+                  });
                 },
-                child: _buildPickCard(books[index].imageUrl),
+                itemBuilder: (context, index) => GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => BookDetailScreen(book: books[index]),
+                      ),
+                    );
+                  },
+                  child: _buildPickCard(books[index].imageUrl),
+                ),
               ),
             ),
           ),
@@ -147,54 +150,67 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       pages.add(books.sublist(i, end));
     }
 
-    // 로로 스와이프 가능한 PageView 생성
+    // 가로 스와이프 가능한 PageView 생성
     return SizedBox(
       height: 390,
-      child: PageView.builder(
-        controller: PageController(viewportFraction: 1.0),
-        itemCount: pages.length,
-        itemBuilder: (context, pageIndex) {
-          final pageBooks = pages[pageIndex];
+      child: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+        child: PageView.builder(
+          controller: PageController(viewportFraction: 1.0),
+          itemCount: pages.length,
+          itemBuilder: (context, pageIndex) {
+            final pageBooks = pages[pageIndex];
 
-          return Column(
-            children: pageBooks.map((book) {
-              return GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => BookDetailScreen(book: book),
-                    ),
-                  );
-                },
-                child: _buildBestsellerItem(
-                  rank: book.rank.toString(),
-                  title: book.title.toString(),
-                  author: book.author.toString(),
-                  imageUrl: book.imageUrl.toString(),
-                  rating: book.rating.toString(),
-                  reviewCount: book.reviewCount.toString(),
-                ),
-              );
-            }).toList(),
-          );
-        },
+            return Column(
+              children: pageBooks.map((book) {
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => BookDetailScreen(book: book),
+                      ),
+                    );
+                  },
+                  child: _buildBestsellerItem(
+                    rank: book.rank.toString(),
+                    title: book.title.toString(),
+                    author: book.author.toString(),
+                    imageUrl: book.imageUrl.toString(),
+                    rating: book.rating.toString(),
+                    reviewCount: book.reviewCount.toString(),
+                  ),
+                );
+              }).toList(),
+            );
+          },
+        ),
       ),
     );
   }
 
   Widget _buildPickCard(String imageUrl) {
+    const double cardWidth = 130;
+    const double cardHeight = 190;
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(6),
-        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 20, offset: Offset(-10, 15))],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(6),
-        child: CustomNetworkImage(
-          imageUrl: imageUrl,
+    return Center(
+      child: Container(
+        width: cardWidth,
+        height: cardHeight,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: const [
+            BoxShadow(color: Colors.black38, blurRadius: 24, offset: Offset(0, 12)),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: CustomNetworkImage(
+            imageUrl: imageUrl,
+            width: cardWidth,
+            height: cardHeight,
+            fit: BoxFit.cover,
+          ),
         ),
       ),
     );

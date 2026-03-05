@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../core/constants/app_config.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) {
   return AuthService();
@@ -63,7 +64,7 @@ class AuthService {
       credential = await _auth.signInWithPopup(provider);
     } else {
       await _googleSignIn.initialize(
-        serverClientId: '318946402557-h2ub52o8ltcj0cqssgfnk0pn4sscbash.apps.googleusercontent.com',
+        serverClientId: AppConfig.googleServerClientId,
       );
 
       final GoogleSignInAccount? googleUser = await _googleSignIn.authenticate();
@@ -114,23 +115,9 @@ class AuthService {
   }
 
   // 2. 회원가입 및 본인 인증 관련 로직
-  // 이메일 인증 코드 발송
+  // 이메일 인증 코드 발송 (최초 발송 및 재전송 공통)
   Future<void> sendEmailVerificationCode(String email) async {
-    final url = Uri.parse('https://sendverificationcode-o4apuahgma-uc.a.run.app');
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode({'email': email.trim().toLowerCase()}),
-    );
-
-    if (response.statusCode != 200) {
-      throw Exception(response.body);
-    }
-  }
-
-  // 인증 코드 재전송
-  Future<void> resendVerificationCode(String email) async {
-    final url = Uri.parse('https://sendverificationcode-o4apuahgma-uc.a.run.app');
+    final url = Uri.parse(AppConfig.sendVerificationCodeUrl);
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
@@ -150,7 +137,7 @@ class AuthService {
     required String nickname,
     required String code,
   }) async {
-    final url = Uri.parse('https://verifycodeandfinalizesignup-o4apuahgma-uc.a.run.app');
+    final url = Uri.parse(AppConfig.verifyCodeAndFinalizeSignupUrl);
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},

@@ -126,23 +126,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   _buildDividerWithText(),
                   const SizedBox(height: 28),
 
-                  _buildSocialLoginButton(
-                    text: '카카오로 시작하기',
-                    color: const Color(0xFFFEE500),
-                    textColor: const Color(0xFF222222),
-                    onPressed: isLoading ? null : () {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('카카오 로그인은 아직 준비 중입니다.')));
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  _buildSocialLoginButton(
-                    text: '네이버로 시작하기',
-                    color: const Color(0xFF03C75A),
-                    textColor: Colors.white,
-                    onPressed: isLoading ? null : () {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('네이버 로그인은 아직 준비 중입니다.')));
-                    },
-                  ),
                   const SizedBox(height: 16),
                   _buildSocialLoginButton(
                     text: 'Google로 시작하기',

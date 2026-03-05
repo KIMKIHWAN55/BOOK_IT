@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../repositories/profile_repository.dart';
 import '../../book/models/book_model.dart';
 import '../models/user_model.dart';
-import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 final userProfileProvider = StreamProvider.autoDispose<UserModel?>((ref) {
   return ref.watch(profileRepositoryProvider).getUserProfileStream();
@@ -28,7 +28,7 @@ class ProfileActionController {
     required String name,
     required String nickname,
     required String bio,
-    File? imageFile,
+    XFile? imageFile,
     required bool isInitial,
   }) async {
     String? imageUrl;
@@ -51,7 +51,7 @@ class ProfileActionController {
     required String name,
     required String nickname,
     required String bio,
-    File? imageFile,
+    XFile? imageFile,
   }) async {
     await _handleProfileSave(
       name: name,
@@ -67,7 +67,7 @@ class ProfileActionController {
     required String name,
     required String nickname,
     required String bio,
-    File? imageFile,
+    XFile? imageFile,
   }) async {
     await _handleProfileSave(
       name: name,

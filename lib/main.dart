@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,11 +9,20 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'firebase_options.dart';
 import 'core/router/app_router.dart';
 import 'core/constants/app_colors.dart';
-
 import 'features/auth/services/auth_service.dart';
 import 'features/auth/views/app_intro_screen.dart';
 import 'features/auth/views/login_screen.dart';
 import 'features/home/views/main_screen.dart';
+
+// 웹에서 마우스 드래그 스크롤을 활성화하는 커스텀 ScrollBehavior
+class AppScrollBehavior extends MaterialScrollBehavior {
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.stylus,
+      };
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,6 +66,7 @@ class BookitApp extends ConsumerWidget {
     return MaterialApp(
       title: '북잇',
       debugShowCheckedModeBanner: false,
+      scrollBehavior: AppScrollBehavior(),
       theme: ThemeData(
         fontFamily: 'Pretendard',
         scaffoldBackgroundColor: AppColors.background,

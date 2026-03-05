@@ -59,7 +59,7 @@ class VerificationController extends Notifier<VerificationState> {
     state = state.copyWith(isResending: true);
     try {
       final authService = ref.read(authServiceProvider);
-      await authService.resendVerificationCode(email);
+      await authService.sendEmailVerificationCode(email);
       startTimer();
       return null;
     } catch (e) {

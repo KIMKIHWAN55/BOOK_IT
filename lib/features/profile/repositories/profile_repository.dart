@@ -4,8 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../book/models/book_model.dart';
 import '../models/user_model.dart';
 import 'package:flutter/foundation.dart';
-import 'dart:io';
+import 'dart:io' show File;
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
 
 final profileRepositoryProvider = Provider.autoDispose((ref) => ProfileRepository());
 
@@ -55,7 +56,7 @@ class ProfileRepository {
   }
 
   // 프로필 업데이트 및 설정
-  Future<String?> uploadProfileImage(File imageFile) async {
+  Future<String?> uploadProfileImage(XFile imageFile) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception("로그인이 필요합니다.");
 
@@ -73,8 +74,8 @@ class ProfileRepository {
         SettableMetadata(contentType: 'image/jpeg'),
       );
     } else {
-      // 모바일 환경: 메모리(RAM) 절약을 위해 putFile로 업로드
-      await storageRef.putFile(imageFile);
+      // 모바일 환경: XFile.path로 File 변환 후 putFile 업로드
+      await storageRef.putFile(File(imageFile.path));
     }
 
     return await storageRef.getDownloadURL();
@@ -153,7 +154,25 @@ class ProfileRepository {
   Future<void> deleteAccount() async {
     final user = _auth.currentUser;
     if (user == null) throw Exception("로그인이 필요합니다.");
-    await _firestore.collection('users').doc(user.uid).delete();
+
+    final uid = user.uid;
+    final userRef = _firestore.collection('users').doc(uid);
+
+    // 서브컬렉션 일괄 삭제
+    final subcollections = ['cart', 'liked_books', 'liked_feeds', 'purchased_books'];
+    for (final sub in subcollections) {
+      final snapshot = await userRef.collection(sub).get();
+      final batch = _firestore.batch();
+      for (final doc in snapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      if (snapshot.docs.isNotEmpty) await batch.commit();
+    }
+
+    // users 문서 삭제
+    await userRef.delete();
+
+    // Firebase Auth 계정 삭제
     await user.delete();
   }
 }
